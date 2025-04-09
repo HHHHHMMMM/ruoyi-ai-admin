@@ -42,12 +42,8 @@ export function useGraphData() {
     try {
       loading.value = true;
       const res = await getGraphData();
-
-      if (res.code === 0 && res.data) {
-        graphData.value = res.data;
-      } else {
-        throw new Error(res.msg || '获取图谱数据失败');
-      }
+      console.log(res);
+      graphData.value = res;
     } catch (error) {
       console.error('获取图谱数据异常:', error);
       message.error('获取图谱数据失败');
@@ -66,7 +62,7 @@ export function useGraphData() {
     try {
       loading.value = true;
       const res = await getNodeRelations(nodeId);
-      if (res.code === 0 && res.data) {
+      if (res.code === 200 && res.data) {
         // 合并新数据到现有图谱
         graphData.value = GraphUtils.mergeGraphData(graphData.value, res.data);
         return true;
@@ -97,7 +93,7 @@ export function useGraphData() {
           : params;
 
       const res = await searchNodesApi(searchParams);
-      if (res.code === 0 && res.data) {
+      if (res.code === 200 && res.data) {
         // 合并新数据到现有图谱
         graphData.value = GraphUtils.mergeGraphData(graphData.value, res.data);
 
@@ -129,7 +125,7 @@ export function useGraphData() {
     try {
       loading.value = true;
       const res = await findPathApi(params);
-      if (res.code === 0 && res.data) {
+      if (res.code === 200 && res.data) {
         // 合并新数据到现有图谱
         graphData.value = GraphUtils.mergeGraphData(graphData.value, res.data);
 
@@ -160,7 +156,7 @@ export function useGraphData() {
     try {
       loading.value = true;
       const res = await createNodeApi(nodeData);
-      if (res.code === 0) {
+      if (res.code === 200) {
         // 刷新图谱数据
         await fetchGraphData();
         message.success('节点创建成功');
@@ -186,7 +182,7 @@ export function useGraphData() {
     try {
       loading.value = true;
       const res = await updateNodeApi(nodeId, nodeData);
-      if (res.code === 0) {
+      if (res.code === 200) {
         // 刷新图谱数据
         await fetchGraphData();
         message.success('节点更新成功');
@@ -211,7 +207,7 @@ export function useGraphData() {
     try {
       loading.value = true;
       const res = await deleteNodeApi(nodeId);
-      if (res.code === 0) {
+      if (res.code === 200) {
         // 刷新图谱数据
         await fetchGraphData();
         message.success('节点删除成功');
@@ -236,7 +232,7 @@ export function useGraphData() {
     try {
       loading.value = true;
       const res = await createRelationApi(relationData);
-      if (res.code === 0) {
+      if (res.code === 200) {
         // 刷新图谱数据
         await fetchGraphData();
         message.success('关系创建成功');
@@ -262,7 +258,7 @@ export function useGraphData() {
     try {
       loading.value = true;
       const res = await updateRelationApi(relationId, relationData);
-      if (res.code === 0) {
+      if (res.code === 200) {
         // 刷新图谱数据
         await fetchGraphData();
         message.success('关系更新成功');
@@ -287,7 +283,7 @@ export function useGraphData() {
     try {
       loading.value = true;
       const res = await deleteRelationApi(relationId);
-      if (res.code === 0) {
+      if (res.code === 200) {
         // 刷新图谱数据
         await fetchGraphData();
         message.success('关系删除成功');

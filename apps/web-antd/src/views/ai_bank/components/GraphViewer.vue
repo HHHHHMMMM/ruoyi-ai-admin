@@ -343,7 +343,24 @@ const initGraph = () => {
             },
           },
         ],
-        addEdge: ['click-add-edge', 'drag-canvas', 'zoom-canvas'],
+        // 在 G6 4.8.x 中，创建边的行为通常是通过在节点之间创建边的交互实现的
+        // 使用正确的内置交互行为名称
+        addingEdge: [
+          {
+            type: 'create-edge', // G6 4.8.x 中的边创建交互
+            trigger: 'click', // 使用点击触发
+            edgeConfig: {
+              // 新创建边的默认配置
+              type: 'custom-edge',
+              style: {
+                stroke: '#aaa',
+                lineWidth: 1.5,
+              },
+            },
+          },
+          'drag-canvas',
+          'zoom-canvas',
+        ],
       },
       layout: {
         type: 'force',
@@ -351,6 +368,13 @@ const initGraph = () => {
         linkDistance: 100,
         nodeStrength: -100,
         edgeStrength: 0.1,
+        // 为力导向布局添加额外配置，提高稳定性
+        alphaDecay: 0.028,
+        alphaMin: 0.001,
+        onLayoutEnd: () => {
+          // 布局结束后适应视图
+          graph.value?.fitView(20);
+        },
       },
       defaultNode: {
         type: 'custom-node',
@@ -380,14 +404,26 @@ const initGraph = () => {
           stroke: '#f00',
         },
       },
+      // 添加插件配置
+      plugins: [
+        // 如果需要使用 G6 插件，可以在这里添加
+      ],
     });
 
     // Register events
     registerGraphEvents();
 
-    // Render graph
-    graph.value.data(formatGraphData());
-    graph.value.render();
+    // Render graph with formatted data
+    const data = formatGraphData();
+    graph.value.data(data);
+
+    // 在 render 之前设置布局完成后的回调
+    graph.value.on('afterlayout', () => {
+      // 布局完成后适应视图
+      graph.value?.fitView(20);
+    });
+
+    //graph.value.render();
   }
 };
 
@@ -459,13 +495,21 @@ const registerGraphEvents = () => {
   });
 
   // Add edge event
-  graph.value.on('edge:add', (evt: any) => {
-    const { source, target } = evt;
-    const sourceModel = source.getModel();
-    const targetModel = target.getModel();
+  // 使用正确的边创建事件
+  graph.value.on('aftercreateedge', (evt: any) => {
+    // 在 G6 4.8.x 中，事件对象的结构可能不同
+    const { edge } = evt;
+    if (edge) {
+      const model = edge.getModel();
+      const sourceId = model.source;
+      const targetId = model.target;
 
-    // Emit add edge event
-    emit('add-edge', { sourceId: sourceModel.id, targetId: targetModel.id });
+      // 发出添加边事件
+      emit('add-edge', {
+        sourceId,
+        targetId,
+      });
+    }
   });
 
   // Window resize event
@@ -657,31 +701,92 @@ const resizeGraph = () => {
 };
 
 // Format graph data
+// Format graph data
 const formatGraphData = () => {
-  const filteredNodes = props.graphData.nodes.filter((node: NodeItem) => {
+  if (!props.graphData || !props.graphData.nodes || !props.graphData.edges) {
+    console.error('无效的图表数据:', props.graphData);
+    return { nodes: [], edges: [] };
+  }
+
+  const filteredNodes = props.graphData.nodes.filter((node) => {
     if (visibleNodeTypes.value.length === 0) return true;
     return visibleNodeTypes.value.includes(node.nodeType);
   });
 
-  const nodeIds = new Set(filteredNodes.map((node: NodeItem) => node.id));
+  const nodeIds = new Set(filteredNodes.map((node) => String(node.id)));
 
-  const filteredEdges = props.graphData.edges.filter((edge: RelationItem) => {
+  const filteredEdges = props.graphData.edges.filter((edge) => {
     const typeMatches =
       visibleRelationTypes.value.length === 0 ||
       visibleRelationTypes.value.includes(edge.relationLabel);
-    const nodesIncluded = nodeIds.has(edge.source) && nodeIds.has(edge.target);
+    // 转换为字符串比较
+    const nodesIncluded =
+      nodeIds.has(String(edge.source)) && nodeIds.has(String(edge.target));
     return typeMatches && nodesIncluded;
   });
 
+  // 使用Set跟踪已经处理过的ID
+  const processedNodeIds = new Set();
+  const processedEdgeIds = new Set();
+
+  // 确保生成正确的G6格式数据
   return {
-    nodes: filteredNodes.map((node: NodeItem) => ({
-      ...node,
-      label: node.name || node.label || `节点${node.id}`,
-    })),
-    edges: filteredEdges.map((edge: RelationItem) => ({
-      ...edge,
-      id: edge.id || `${edge.source}-${edge.target}`,
-    })),
+    nodes: filteredNodes
+      .filter((node) => {
+        const nodeId = String(node.id);
+        // 如果ID已经存在，跳过这个节点
+        if (processedNodeIds.has(nodeId)) {
+          console.warn(`跳过重复节点ID: ${nodeId}`);
+          return false;
+        }
+        processedNodeIds.add(nodeId);
+        return true;
+      })
+      .map((node) => ({
+        id: String(node.id), // 转换为字符串
+        // 使用properties里的description或其他字段作为节点名称
+        label:
+          node.name ||
+          (node.properties && node.properties.description) ||
+          `节点${node.id}`,
+        nodeType: node.nodeType,
+        properties: node.properties || {},
+        // 添加一些G6可能需要的布局属性
+        style: {
+          fill: getNodeColor(node.nodeType),
+        },
+      })),
+    edges: filteredEdges
+      .filter((edge) => {
+        const edgeId = String(edge.id);
+        // 如果ID已经存在，跳过这条边
+        if (processedEdgeIds.has(edgeId)) {
+          console.warn(`跳过重复边ID: ${edgeId}`);
+          return false;
+        }
+        processedEdgeIds.add(edgeId);
+        // 确保源节点和目标节点存在
+        const sourceExists = processedNodeIds.has(String(edge.source));
+        const targetExists = processedNodeIds.has(String(edge.target));
+        if (!sourceExists || !targetExists) {
+          console.warn(`跳过边 ${edgeId}，因为源节点或目标节点不存在`);
+          return false;
+        }
+        return true;
+      })
+      .map((edge) => ({
+        id: String(edge.id), // 转换为字符串
+        source: String(edge.source), // 转换为字符串
+        target: String(edge.target), // 转换为字符串
+        relationLabel: edge.relationLabel,
+        properties: edge.properties || {},
+        // 添加可能的样式属性
+        style: {
+          stroke: '#aaa',
+          lineWidth: 1.5,
+          endArrow: true,
+        },
+      })),
   };
 };
 
@@ -745,7 +850,7 @@ const enableCreateRelation = () => {
   if (!graph.value) return;
 
   // Set mode to add edge
-  graph.value.setMode('addEdge');
+  graph.value.setMode('addingEdge');
 
   // Show instruction message
   const message = document.createElement('div');
@@ -841,19 +946,39 @@ onUnmounted(() => {
 });
 
 // Watch for data changes
+// 修改 watch 部分的代码
+// 在watch中添加日志
 watch(
   () => props.graphData,
   () => {
+    console.log('graphData changed:', props.graphData);
     nextTick(() => {
       if (graph.value) {
-        graph.value.data(formatGraphData());
-        graph.value.render();
+        try {
+          const formattedData = formatGraphData();
+          console.log('Formatted data for G6:', formattedData);
+
+          // 清除之前的所有元素
+          graph.value.clear();
+
+          // 更新数据
+          graph.value.data(formattedData);
+
+          // 渲染图表
+          graph.value.render();
+
+          // 适应视图
+          setTimeout(() => {
+            graph.value.fitView(20);
+          }, 100);
+        } catch (error) {
+          console.error('更新图表数据失败:', error);
+        }
       }
     });
   },
   { deep: true },
 );
-
 // Expose methods to parent component
 defineExpose({
   applyFilters,

@@ -5,85 +5,79 @@
       <span class="panel-title">节点搜索</span>
     </div>
     <div class="panel-content">
-      <a-form layout="vertical" :model="formState">
-        <a-form-item>
-          <a-input-search
+      <Form layout="vertical" :model="formState">
+        <FormItem>
+          <InputSearch
             v-model:value="formState.keyword"
             placeholder="输入节点名称或属性关键词"
             enter-button
             allow-clear
             @search="handleSearch"
           />
-        </a-form-item>
+        </FormItem>
 
-        <a-form-item label="搜索类型">
-          <a-select
+        <FormItem label="搜索类型">
+          <Select
             v-model:value="formState.searchType"
             placeholder="选择搜索类型"
             style="width: 100%"
           >
-            <a-select-option value="name">节点名称</a-select-option>
-            <a-select-option value="property">节点属性</a-select-option>
-            <a-select-option value="all">全部</a-select-option>
-          </a-select>
-        </a-form-item>
+            <SelectOption value="name">节点名称</SelectOption>
+            <SelectOption value="property">节点属性</SelectOption>
+            <SelectOption value="all">全部</SelectOption>
+          </Select>
+        </FormItem>
 
-        <a-form-item
-          v-if="formState.searchType === 'property'"
-          label="属性字段"
-        >
-          <a-select
+        <FormItem v-if="formState.searchType === 'property'" label="属性字段">
+          <Select
             v-model:value="formState.propertyField"
             placeholder="选择属性字段"
             style="width: 100%"
           >
-            <a-select-option value="id">ID</a-select-option>
-            <a-select-option value="name">名称</a-select-option>
-            <a-select-option value="description">描述</a-select-option>
-            <a-select-option value="type">类型</a-select-option>
-            <a-select-option value="all">全部属性</a-select-option>
-          </a-select>
-        </a-form-item>
+            <SelectOption value="id">ID</SelectOption>
+            <SelectOption value="name">名称</SelectOption>
+            <SelectOption value="description">描述</SelectOption>
+            <SelectOption value="type">类型</SelectOption>
+            <SelectOption value="all">全部属性</SelectOption>
+          </Select>
+        </FormItem>
 
-        <a-form-item>
-          <a-radio-group
-            v-model:value="formState.searchMode"
-            button-style="solid"
-          >
-            <a-radio-button value="fuzzy">
+        <FormItem>
+          <RadioGroup v-model:value="formState.searchMode" button-style="solid">
+            <RadioButton value="fuzzy">
               <template #icon><AimOutlined /></template>
               模糊
-            </a-radio-button>
-            <a-radio-button value="exact">
+            </RadioButton>
+            <RadioButton value="exact">
               <template #icon><FullscreenOutlined /></template>
               精确
-            </a-radio-button>
-          </a-radio-group>
-        </a-form-item>
-      </a-form>
+            </RadioButton>
+          </RadioGroup>
+        </FormItem>
+      </Form>
 
-      <a-divider style="margin: 8px 0" />
+      <Divider style="margin: 8px 0" />
 
       <div v-if="searchHistory.length > 0" class="search-history">
         <div class="history-header">
           <span>搜索历史</span>
-          <a-button type="link" size="small" @click="clearHistory">
+          <Button type="link" size="small" @click="clearHistory">
             <template #icon><DeleteOutlined /></template>
             清空
-          </a-button>
+          </Button>
         </div>
-        <a-list size="small">
-          <a-list-item v-for="(item, index) in searchHistory" :key="index">
-            <a-tag
+        <List size="small">
+          <ListItem v-for="(item, index) in searchHistory" :key="index">
+            <Tag
               color="blue"
               class="history-tag"
               @click="applyHistorySearch(item)"
             >
               {{ item.keyword }}
               <template #icon><SearchOutlined /></template>
-            </a-tag>
-          </a-list-item>
-        </a-list>
+            </Tag>
+          </ListItem>
+        </List>
       </div>
     </div>
   </div>
@@ -97,6 +91,20 @@ import {
   FullscreenOutlined,
   DeleteOutlined,
 } from '@ant-design/icons-vue';
+import {
+  Form,
+  FormItem,
+  InputSearch,
+  Select,
+  SelectOption,
+  RadioGroup,
+  RadioButton,
+  Divider,
+  Button,
+  List,
+  ListItem,
+  Tag,
+} from 'ant-design-vue';
 
 export default defineComponent({
   name: 'SearchPanel',
@@ -105,6 +113,18 @@ export default defineComponent({
     AimOutlined,
     FullscreenOutlined,
     DeleteOutlined,
+    Form,
+    FormItem,
+    InputSearch,
+    Select,
+    SelectOption,
+    RadioGroup,
+    RadioButton,
+    Divider,
+    Button,
+    List,
+    ListItem,
+    Tag,
   },
   emits: ['search'],
   setup(props, { emit }) {
@@ -142,3 +162,49 @@ export default defineComponent({
   },
 });
 </script>
+
+<style lang="less" scoped>
+.search-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+
+  .panel-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid #f0f0f0;
+    display: flex;
+    align-items: center;
+
+    .search-icon {
+      margin-right: 8px;
+      color: #1890ff;
+    }
+
+    .panel-title {
+      font-size: 16px;
+      font-weight: 500;
+    }
+  }
+
+  .panel-content {
+    padding: 12px;
+    flex: 1;
+    overflow-y: auto;
+  }
+
+  .search-history {
+    margin-top: 16px;
+
+    .history-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .history-tag {
+      cursor: pointer;
+    }
+  }
+}
+</style>

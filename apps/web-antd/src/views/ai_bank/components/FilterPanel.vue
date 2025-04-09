@@ -6,57 +6,53 @@
     </div>
 
     <div class="panel-content">
-      <a-collapse v-model:activeKey="activeKeys" ghost>
+      <Collapse v-model:activeKey="activeKeys" ghost>
         <!-- 节点过滤 -->
-        <a-collapse-panel key="nodeFilter" header="节点类型">
+        <CollapsePanel key="nodeFilter" header="节点类型">
           <div class="filter-section">
             <div class="filter-actions">
-              <a-button type="link" size="small" @click="selectAllNodeTypes">
+              <Button type="link" size="small" @click="selectAllNodeTypes">
                 全选
-              </a-button>
-              <a-button type="link" size="small" @click="unselectAllNodeTypes">
+              </Button>
+              <Button type="link" size="small" @click="unselectAllNodeTypes">
                 清空
-              </a-button>
+              </Button>
             </div>
 
             <div class="filter-type-list">
-              <a-checkbox-group
+              <CheckboxGroup
                 v-model:value="selectedNodeTypes"
                 @change="handleFilterChange"
               >
                 <div v-for="type in nodeTypes" :key="type" class="type-item">
-                  <a-checkbox :value="type">
-                    <a-tag :color="getNodeTypeColor(type)">{{ type }}</a-tag>
-                  </a-checkbox>
+                  <Checkbox :value="type">
+                    <Tag :color="getNodeTypeColor(type)">{{ type }}</Tag>
+                  </Checkbox>
                   <span class="type-count">{{ getNodeTypeCount(type) }}</span>
                 </div>
-              </a-checkbox-group>
+              </CheckboxGroup>
             </div>
           </div>
-        </a-collapse-panel>
+        </CollapsePanel>
 
         <!-- 关系过滤 -->
-        <a-collapse-panel key="relationFilter" header="关系类型">
+        <CollapsePanel key="relationFilter" header="关系类型">
           <div class="filter-section">
             <div class="filter-actions">
-              <a-button
-                type="link"
-                size="small"
-                @click="selectAllRelationTypes"
-              >
+              <Button type="link" size="small" @click="selectAllRelationTypes">
                 全选
-              </a-button>
-              <a-button
+              </Button>
+              <Button
                 type="link"
                 size="small"
                 @click="unselectAllRelationTypes"
               >
                 清空
-              </a-button>
+              </Button>
             </div>
 
             <div class="filter-type-list">
-              <a-checkbox-group
+              <CheckboxGroup
                 v-model:value="selectedRelationTypes"
                 @change="handleFilterChange"
               >
@@ -65,58 +61,58 @@
                   :key="type"
                   class="type-item"
                 >
-                  <a-checkbox :value="type">
+                  <Checkbox :value="type">
                     <span>{{ type }}</span>
-                  </a-checkbox>
+                  </Checkbox>
                   <span class="type-count">{{
                     getRelationTypeCount(type)
                   }}</span>
                 </div>
-              </a-checkbox-group>
+              </CheckboxGroup>
             </div>
           </div>
-        </a-collapse-panel>
+        </CollapsePanel>
 
         <!-- 路径分析 -->
-        <a-collapse-panel key="pathAnalysis" header="路径分析">
+        <CollapsePanel key="pathAnalysis" header="路径分析">
           <div class="filter-section">
-            <a-form layout="vertical">
-              <a-form-item label="起始节点">
-                <a-select
+            <Form layout="vertical">
+              <FormItem label="起始节点">
+                <Select
                   v-model:value="pathAnalysis.sourceId"
                   placeholder="选择起始节点"
                   show-search
                   :filter-option="filterOption"
                 >
-                  <a-select-option
+                  <SelectOption
                     v-for="node in availableNodes"
                     :key="node.id"
                     :value="node.id"
                   >
                     {{ node.label || node.name || `节点${node.id}` }}
-                  </a-select-option>
-                </a-select>
-              </a-form-item>
+                  </SelectOption>
+                </Select>
+              </FormItem>
 
-              <a-form-item label="目标节点">
-                <a-select
+              <FormItem label="目标节点">
+                <Select
                   v-model:value="pathAnalysis.targetId"
                   placeholder="选择目标节点"
                   show-search
                   :filter-option="filterOption"
                 >
-                  <a-select-option
+                  <SelectOption
                     v-for="node in availableNodes"
                     :key="node.id"
                     :value="node.id"
                   >
                     {{ node.label || node.name || `节点${node.id}` }}
-                  </a-select-option>
-                </a-select>
-              </a-form-item>
+                  </SelectOption>
+                </Select>
+              </FormItem>
 
-              <a-form-item label="最大深度">
-                <a-slider
+              <FormItem label="最大深度">
+                <Slider
                   v-model:value="pathAnalysis.maxDepth"
                   :min="1"
                   :max="6"
@@ -129,9 +125,9 @@
                     6: '6',
                   }"
                 />
-              </a-form-item>
+              </FormItem>
 
-              <a-button
+              <Button
                 type="primary"
                 block
                 :disabled="!pathAnalysis.sourceId || !pathAnalysis.targetId"
@@ -139,18 +135,16 @@
               >
                 <template #icon><ApartmentOutlined /></template>
                 查找路径
-              </a-button>
-            </a-form>
+              </Button>
+            </Form>
           </div>
-        </a-collapse-panel>
-      </a-collapse>
+        </CollapsePanel>
+      </Collapse>
 
-      <a-divider style="margin: 8px 0" />
+      <Divider style="margin: 8px 0" />
 
       <div class="apply-filters">
-        <a-button type="primary" block @click="applyFilters">
-          应用过滤器
-        </a-button>
+        <Button type="primary" block @click="applyFilters"> 应用过滤器 </Button>
       </div>
     </div>
   </div>
@@ -161,6 +155,20 @@ import { defineComponent, ref, reactive, computed, watchEffect } from 'vue';
 import type { PropType } from 'vue';
 
 import { FilterOutlined, ApartmentOutlined } from '@ant-design/icons-vue';
+import {
+  Collapse,
+  CollapsePanel,
+  Button,
+  CheckboxGroup,
+  Checkbox,
+  Tag,
+  Form,
+  FormItem,
+  Select,
+  SelectOption,
+  Slider,
+  Divider,
+} from 'ant-design-vue';
 import type { NodeItem, RelationItem } from '../data/types';
 
 export default defineComponent({
@@ -168,6 +176,18 @@ export default defineComponent({
   components: {
     FilterOutlined,
     ApartmentOutlined,
+    Collapse,
+    CollapsePanel,
+    Button,
+    CheckboxGroup,
+    Checkbox,
+    Tag,
+    Form,
+    FormItem,
+    Select,
+    SelectOption,
+    Slider,
+    Divider,
   },
   props: {
     nodeTypes: {

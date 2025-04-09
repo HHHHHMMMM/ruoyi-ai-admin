@@ -1,5 +1,5 @@
 <template>
-  <a-drawer
+  <Drawer
     :visible="visible"
     :title="drawerTitle"
     width="450"
@@ -7,19 +7,19 @@
     class="node-detail-drawer"
   >
     <template #extra>
-      <a-space>
-        <a-button @click="handleClose">关闭</a-button>
-        <a-button type="primary" @click="handleExpandRelations">
+      <Space>
+        <Button @click="handleClose">关闭</Button>
+        <Button type="primary" @click="handleExpandRelations">
           <template #icon><NodeExpandOutlined /></template>
           展开关系
-        </a-button>
-      </a-space>
+        </Button>
+      </Space>
     </template>
 
     <Spin :spinning="loading">
       <template v-if="nodeData">
         <!-- 节点基本信息 -->
-        <a-card class="node-info-card" :bordered="false">
+        <Card class="node-info-card" :bordered="false">
           <template #title>
             <div class="card-title">
               <div
@@ -32,26 +32,26 @@
             </div>
           </template>
 
-          <a-descriptions :column="1">
-            <a-descriptions-item label="ID">
+          <Descriptions :column="1">
+            <DescriptionsItem label="ID">
               {{ nodeData.id }}
-            </a-descriptions-item>
-            <a-descriptions-item label="名称">
+            </DescriptionsItem>
+            <DescriptionsItem label="名称">
               {{ nodeData.name || nodeData.label || '-' }}
-            </a-descriptions-item>
-            <a-descriptions-item label="类型">
-              <a-tag :color="getNodeTypeColor(nodeData.nodeType)">
+            </DescriptionsItem>
+            <DescriptionsItem label="类型">
+              <Tag :color="getNodeTypeColor(nodeData.nodeType)">
                 {{ nodeData.nodeType }}
-              </a-tag>
-            </a-descriptions-item>
-          </a-descriptions>
-        </a-card>
+              </Tag>
+            </DescriptionsItem>
+          </Descriptions>
+        </Card>
 
         <!-- 节点属性列表 -->
-        <a-card class="node-properties-card" title="属性列表" :bordered="false">
-          <a-empty v-if="!hasProperties" description="暂无属性" />
-          <a-collapse v-else accordion>
-            <a-collapse-panel
+        <Card class="node-properties-card" title="属性列表" :bordered="false">
+          <Empty v-if="!hasProperties" description="暂无属性" />
+          <Collapse v-else accordion>
+            <CollapsePanel
               v-for="(value, key) in nodeProperties"
               :key="key"
               :header="key"
@@ -64,102 +64,122 @@
                   {{ value }}
                 </template>
               </div>
-            </a-collapse-panel>
-          </a-collapse>
-        </a-card>
+            </CollapsePanel>
+          </Collapse>
+        </Card>
 
         <!-- 关系列表 -->
-        <a-card class="node-relations-card" title="相关联系" :bordered="false">
-          <a-tabs default-active-key="outgoing">
+        <Card class="node-relations-card" title="相关联系" :bordered="false">
+          <Tabs default-active-key="outgoing">
             <!-- 出向关系 -->
-            <a-tab-pane key="outgoing" tab="出向关系">
-              <a-empty
-                v-if="!hasOutgoingRelations"
-                description="暂无出向关系"
-              />
-              <a-list v-else size="small">
-                <a-list-item
+            <TabPane key="outgoing" tab="出向关系">
+              <Empty v-if="!hasOutgoingRelations" description="暂无出向关系" />
+              <List v-else size="small">
+                <ListItem
                   v-for="relation in outgoingRelations"
                   :key="relation.id"
                 >
-                  <a-list-item-meta>
+                  <ListItemMeta>
                     <template #title>
                       <div class="relation-item">
-                        <a-tag color="blue">{{ relation.relationLabel }}</a-tag>
+                        <Tag color="blue">{{ relation.relationLabel }}</Tag>
                         <ArrowRightOutlined />
-                        <a
-                          class="node-link"
-                          @click="handleNodeLinkClick(relation.target)"
-                        >
-                          {{ getTargetNodeName(relation.target) }}
-                          <a-tag size="small">{{
-                            getTargetNodeType(relation.target)
-                          }}</a-tag>
-                        </a>
+
+                        class="node-link"
+                        @click="handleNodeLinkClick(relation.target)" >
+                        {{ getTargetNodeName(relation.target) }}
+                        <Tag size="small">{{
+                          getTargetNodeType(relation.target)
+                        }}</Tag>
                       </div>
                     </template>
-                  </a-list-item-meta>
-                </a-list-item>
-              </a-list>
-            </a-tab-pane>
+                  </ListItemMeta>
+                </ListItem>
+              </List>
+            </TabPane>
 
             <!-- 入向关系 -->
-            <a-tab-pane key="incoming" tab="入向关系">
-              <a-empty
-                v-if="!hasIncomingRelations"
-                description="暂无入向关系"
-              />
-              <a-list v-else size="small">
-                <a-list-item
+            <TabPane key="incoming" tab="入向关系">
+              <Empty v-if="!hasIncomingRelations" description="暂无入向关系" />
+              <List v-else size="small">
+                <ListItem
                   v-for="relation in incomingRelations"
                   :key="relation.id"
                 >
-                  <a-list-item-meta>
+                  <ListItemMeta>
                     <template #title>
                       <div class="relation-item">
-                        <a
-                          class="node-link"
-                          @click="handleNodeLinkClick(relation.source)"
-                        >
-                          {{ getSourceNodeName(relation.source) }}
-                          <a-tag size="small">{{
-                            getSourceNodeType(relation.source)
-                          }}</a-tag>
-                        </a>
+                        class="node-link"
+                        @click="handleNodeLinkClick(relation.source)" >
+                        {{ getSourceNodeName(relation.source) }}
+                        <Tag size="small">{{
+                          getSourceNodeType(relation.source)
+                        }}</Tag>
+
                         <ArrowLeftOutlined />
-                        <a-tag color="green">{{
-                          relation.relationLabel
-                        }}</a-tag>
+                        <Tag color="green">{{ relation.relationLabel }}</Tag>
                       </div>
                     </template>
-                  </a-list-item-meta>
-                </a-list-item>
-              </a-list>
-            </a-tab-pane>
-          </a-tabs>
-        </a-card>
+                  </ListItemMeta>
+                </ListItem>
+              </List>
+            </TabPane>
+          </Tabs>
+        </Card>
       </template>
 
-      <a-empty v-else description="请选择一个节点查看详情" />
+      <Empty v-else description="请选择一个节点查看详情" />
     </Spin>
-  </a-drawer>
+  </Drawer>
 </template>
 
 <script lang="ts">
-import { defineComponent, computed, ref, watch } from 'vue';
+import { defineComponent, computed, ref } from 'vue';
 import type { PropType } from 'vue';
 import {
   ArrowRightOutlined,
   ArrowLeftOutlined,
   NodeExpandOutlined,
 } from '@ant-design/icons-vue';
-import { Spin } from 'ant-design-vue';
+import {
+  Drawer,
+  Space,
+  Button,
+  Spin,
+  Card,
+  Descriptions,
+  DescriptionsItem,
+  Tag,
+  Empty,
+  Collapse,
+  CollapsePanel,
+  Tabs,
+  TabPane,
+  List,
+  ListItem,
+  ListItemMeta,
+} from 'ant-design-vue';
 import type { NodeItem, RelationItem } from '../data/types';
 
 export default defineComponent({
   name: 'NodeDetailDrawer',
   components: {
+    Drawer,
+    Space,
+    Button,
     Spin,
+    Card,
+    Descriptions,
+    DescriptionsItem,
+    Tag,
+    Empty,
+    Collapse,
+    CollapsePanel,
+    Tabs,
+    TabPane,
+    List,
+    ListItem,
+    ListItemMeta,
     ArrowRightOutlined,
     ArrowLeftOutlined,
     NodeExpandOutlined,
@@ -184,6 +204,7 @@ export default defineComponent({
   },
   emits: ['update:visible', 'expand-relations', 'node-click'],
   setup(props, { emit }) {
+    // 省略其余代码，保持不变...
     const loading = ref(false);
 
     // 节点标题
