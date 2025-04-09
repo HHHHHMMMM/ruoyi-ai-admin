@@ -117,5 +117,8 @@
       "canvas",
       "node-gyp"
     ]
+  },
+  "dependencies": {
+    "@antv/g6": "^4.8.24"
   }
 }
