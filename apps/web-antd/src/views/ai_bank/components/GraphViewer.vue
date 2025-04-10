@@ -582,7 +582,6 @@ const registerGraphEvents = () => {
     evt.preventDefault();
     const { item } = evt;
     const model = item.getModel();
-
     // Open context menu
     openNodeContextMenu(evt.clientX, evt.clientY, model);
   });

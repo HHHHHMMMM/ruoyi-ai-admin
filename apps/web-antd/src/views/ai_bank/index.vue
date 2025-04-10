@@ -195,6 +195,7 @@ const nodeFormVisible = ref(false);
 
 // 打开节点编辑表单
 const openNodeForm = (node?: NodeItem) => {
+  console.log('12234');
   if (node) {
     // 编辑现有节点
     nodeForm.id = node.id;
@@ -497,6 +498,7 @@ const openCreateRelationForm = () => {
           ref="graphViewerRef"
           :loading="loading"
           :graphData="graphData"
+          @edit-node="openNodeForm"
           @node-click="handleNodeClick"
         />
       </div>
@@ -519,6 +521,7 @@ const openCreateRelationForm = () => {
 
     <!-- 节点编辑对话框 -->
     <Modal
+      width="800px"
       v-model:visible="nodeFormVisible"
       :title="nodeForm.id ? '编辑节点' : '添加节点'"
       @ok="handleNodeFormSubmit"
@@ -537,7 +540,6 @@ const openCreateRelationForm = () => {
           <Input v-model:value="nodeForm.name" />
         </Form.Item>
 
-        <!-- 动态属性表单 -->
         <div v-for="(field, index) in nodeForm.dynamicFields" :key="index">
           <Row :gutter="16">
             <Col :span="10">
@@ -551,7 +553,11 @@ const openCreateRelationForm = () => {
               </Form.Item>
             </Col>
             <Col :span="4">
-              <Button @click="removeDynamicField(index)" danger>删除</Button>
+              <Form.Item label=" " :colon="false">
+                <Button @click="removeRelationDynamicField(index)" danger
+                  >删除</Button
+                >
+              </Form.Item>
             </Col>
           </Row>
         </div>
@@ -602,7 +608,7 @@ const openCreateRelationForm = () => {
 
         <!-- 动态属性表单 -->
         <div v-for="(field, index) in relationForm.dynamicFields" :key="index">
-          <Row :gutter="16">
+          <Row :gutter="16" type="flex" align="middle">
             <Col :span="10">
               <Form.Item label="属性名">
                 <Input v-model:value="field.key" />
@@ -614,9 +620,18 @@ const openCreateRelationForm = () => {
               </Form.Item>
             </Col>
             <Col :span="4">
-              <Button @click="removeRelationDynamicField(index)" danger
-                >删除</Button
+              <div
+                style="
+                  display: flex;
+                  align-items: center;
+                  height: 32px;
+                  margin-top: 20px;
+                "
               >
+                <Button @click="removeRelationDynamicField(index)" danger
+                  >删除</Button
+                >
+              </div>
             </Col>
           </Row>
         </div>
