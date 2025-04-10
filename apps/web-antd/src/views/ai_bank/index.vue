@@ -18,8 +18,6 @@ import {
   ClearOutlined,
   CheckCircleOutlined,
   PlusOutlined,
-  EditOutlined,
-  DeleteOutlined,
   LinkOutlined,
 } from '@ant-design/icons-vue';
 
@@ -279,42 +277,6 @@ const handleNodeFormSubmit = async () => {
   }
 };
 
-// 创建节点
-const createNode = async (nodeData: any) => {
-  try {
-    const res = await createNode(nodeData);
-    if (res.success) {
-      message.success('节点创建成功');
-      return true;
-    } else {
-      message.error(res.message || '节点创建失败');
-      return false;
-    }
-  } catch (error) {
-    console.error('创建节点失败:', error);
-    message.error('创建节点失败');
-    return false;
-  }
-};
-
-// 更新节点
-const updateNode = async (nodeId: string, nodeData: any) => {
-  try {
-    const res = await updateNode(nodeId, nodeData);
-    if (res.success) {
-      message.success('节点更新成功');
-      return true;
-    } else {
-      message.error(res.message || '节点更新失败');
-      return false;
-    }
-  } catch (error) {
-    console.error('更新节点失败:', error);
-    message.error('更新节点失败');
-    return false;
-  }
-};
-
 // 删除节点
 const confirmDeleteNode = (nodeId: string) => {
   Modal.confirm({
@@ -332,25 +294,6 @@ const confirmDeleteNode = (nodeId: string) => {
       }
     },
   });
-};
-
-// 删除节点实现
-const deleteNode = async (nodeId: string) => {
-  try {
-    const res = await deleteNode(nodeId);
-    if (res.success) {
-      message.success('节点删除成功');
-      await refreshGraph(); // 刷新图谱
-      return true;
-    } else {
-      message.error(res.message || '节点删除失败');
-      return false;
-    }
-  } catch (error) {
-    console.error('删除节点失败:', error);
-    message.error('删除节点失败');
-    return false;
-  }
 };
 
 // 关系表单相关
@@ -458,42 +401,6 @@ const handleRelationFormSubmit = async () => {
   }
 };
 
-// 创建关系
-const createRelation = async (relationData: any) => {
-  try {
-    const res = await createRelation(relationData);
-    if (res.success) {
-      message.success('关系创建成功');
-      return true;
-    } else {
-      message.error(res.message || '关系创建失败');
-      return false;
-    }
-  } catch (error) {
-    console.error('创建关系失败:', error);
-    message.error('创建关系失败');
-    return false;
-  }
-};
-
-// 更新关系
-const updateRelation = async (relationId: string, relationData: any) => {
-  try {
-    const res = await updateRelation(relationId, relationData);
-    if (res.success) {
-      message.success('关系更新成功');
-      return true;
-    } else {
-      message.error(res.message || '关系更新失败');
-      return false;
-    }
-  } catch (error) {
-    console.error('更新关系失败:', error);
-    message.error('更新关系失败');
-    return false;
-  }
-};
-
 // 删除关系
 const confirmDeleteRelation = (relationId: string) => {
   Modal.confirm({
@@ -511,25 +418,6 @@ const confirmDeleteRelation = (relationId: string) => {
       }
     },
   });
-};
-
-// 删除关系实现
-const deleteRelation = async (relationId: string) => {
-  try {
-    const res = await deleteRelation(relationId);
-    if (res.success) {
-      message.success('关系删除成功');
-      await refreshGraph(); // 刷新图谱
-      return true;
-    } else {
-      message.error(res.message || '关系删除失败');
-      return false;
-    }
-  } catch (error) {
-    console.error('删除关系失败:', error);
-    message.error('删除关系失败');
-    return false;
-  }
 };
 
 // 打开创建关系表单
