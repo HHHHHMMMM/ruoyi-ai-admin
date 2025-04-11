@@ -6,8 +6,8 @@
  * 节点项接口
  */
 export interface NodeItem {
+  label: string;
   id: string;
-  name: string;
   nodeType: string;
   properties?: Record<string, any>;
   style?: {

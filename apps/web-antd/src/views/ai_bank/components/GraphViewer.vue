@@ -123,6 +123,7 @@ const emit = defineEmits([
   'delete-edge',
   'add-edge',
   'expand-node',
+  'edit-relation',
 ]);
 
 // Refs
@@ -768,6 +769,8 @@ const openAddNodeMenu = (x: number, y: number, point: any) => {
 
 // Open edge context menu
 const openEdgeContextMenu = (x: number, y: number, edge: any) => {
+  console.log('Edge object before emit:', JSON.stringify(edge, null, 2));
+
   const menu = document.createElement('div');
   menu.className = 'graph-context-menu';
   menu.style.position = 'absolute';
@@ -800,8 +803,19 @@ const openEdgeContextMenu = (x: number, y: number, edge: any) => {
   };
 
   // Edit relationship
+  // 修改 openEdgeContextMenu 函数中的编辑项创建
   const editItem = createMenuItem('编辑关系', () => {
-    emit('edit-edge', edge);
+    // 创建一个符合父组件期望格式的对象
+    const editableEdge = {
+      id: edge.originalId, // 使用不带前缀的原始ID
+      source: edge.originalSource, // 使用不带前缀的原始源ID
+      target: edge.originalTarget, // 使用不带前缀的原始目标ID
+      relationLabel: edge.relationLabel,
+      properties: edge.properties,
+    };
+
+    console.log('Sending to parent:', editableEdge);
+    emit('edit-relation', editableEdge);
   });
   menu.appendChild(editItem);
 

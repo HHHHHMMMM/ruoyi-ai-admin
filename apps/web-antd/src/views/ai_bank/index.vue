@@ -195,12 +195,12 @@ const nodeFormVisible = ref(false);
 
 // 打开节点编辑表单
 const openNodeForm = (node?: NodeItem) => {
-  console.log('12234');
+  console.log(node);
   if (node) {
     // 编辑现有节点
     nodeForm.id = node.id;
     nodeForm.label = node.nodeType;
-    nodeForm.name = node.name || '';
+    nodeForm.name = node.label || '';
 
     // 填充动态字段
     nodeForm.dynamicFields = [];
@@ -278,6 +278,14 @@ const handleNodeFormSubmit = async () => {
   }
 };
 
+const handleEditRelation = (relation) => {
+  if (relation) {
+    console.log('Received in parent:', relation);
+    openRelationForm(relation.source, relation.target, relation);
+  } else {
+    console.error('关系对象为空');
+  }
+};
 // 删除节点
 const confirmDeleteNode = (nodeId: string) => {
   Modal.confirm({
@@ -314,6 +322,7 @@ const openRelationForm = (
   targetId?: string,
   relation?: any,
 ) => {
+  console.log(relation);
   if (relation) {
     // 编辑现有关系
     relationForm.id = relation.id;
@@ -500,6 +509,7 @@ const openCreateRelationForm = () => {
           :graphData="graphData"
           @edit-node="openNodeForm"
           @node-click="handleNodeClick"
+          @edit-relation="handleEditRelation"
         />
       </div>
     </div>
@@ -554,9 +564,7 @@ const openCreateRelationForm = () => {
             </Col>
             <Col :span="4">
               <Form.Item label=" " :colon="false">
-                <Button @click="removeRelationDynamicField(index)" danger
-                  >删除</Button
-                >
+                <Button @click="removeDynamicField(index)" danger>删除</Button>
               </Form.Item>
             </Col>
           </Row>
@@ -580,7 +588,7 @@ const openCreateRelationForm = () => {
               :key="node.id"
               :value="node.id"
             >
-              {{ node.name || node.id }}
+              {{ node.label || node.id }}
             </Select.Option>
           </Select>
         </Form.Item>
@@ -592,7 +600,7 @@ const openCreateRelationForm = () => {
               :key="node.id"
               :value="node.id"
             >
-              {{ node.name || node.id }}
+              {{ node.label || node.id }}
             </Select.Option>
           </Select>
         </Form.Item>
