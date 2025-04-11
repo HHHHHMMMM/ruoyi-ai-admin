@@ -12,6 +12,11 @@ import {
   Row,
   Col,
 } from 'ant-design-vue';
+import type {
+  DictData,
+  DictDataResponse,
+} from '#/api/system/dict/dict-data-model';
+
 import {
   ReloadOutlined,
   BuildOutlined,
@@ -39,7 +44,7 @@ import {
 } from './data/api';
 import { useGraphData } from './hooks/useGraphData';
 import type { NodeItem } from './data/types';
-
+import { dictDataList4AiBank } from '#/api/system/dict/dict-data';
 // 节点详情抽屉
 const drawerVisible = ref(false);
 const selectedNode = ref<NodeItem | null>(null);
@@ -188,11 +193,29 @@ const nodeForm = reactive({
   id: '',
   label: 'Problem',
   name: '',
+  // 新增字段
+  problemType: '',
+  problemId: '',
+  description: '',
   dynamicFields: [] as { key: string; value: string }[],
 });
+const problemTypeOptions = ref<DictData[]>([]);
+const dictLoading = ref(false);
 
 const nodeFormVisible = ref(false);
-
+// 加载问题类型字典数据
+const loadProblemTypes = async () => {
+  dictLoading.value = true;
+  try {
+    const res = await dictDataList4AiBank({ dictType: 'problem_type' }); // 使用正确的字典类型
+    problemTypeOptions.value = res.rows || [];
+  } catch (error) {
+    console.error('加载问题类型失败:', error);
+    message.error('加载问题类型失败');
+  } finally {
+    dictLoading.value = false;
+  }
+};
 // 打开节点编辑表单
 const openNodeForm = (node?: NodeItem) => {
   console.log(node);
@@ -200,13 +223,33 @@ const openNodeForm = (node?: NodeItem) => {
     // 编辑现有节点
     nodeForm.id = node.id;
     nodeForm.label = node.nodeType;
-    nodeForm.name = node.label || '';
+
+    if (node.nodeType === 'Problem') {
+      // 是问题节点，填充问题特定字段
+      nodeForm.problemType = node.properties?.problem_type || '';
+      nodeForm.problemId = node.properties?.problem_id || '';
+      nodeForm.description = node.properties?.description || '';
+      loadProblemTypes(); // 加载问题类型数据
+    } else {
+      // 非问题节点
+      nodeForm.name = node.label || '';
+    }
 
     // 填充动态字段
     nodeForm.dynamicFields = [];
     if (node.properties) {
       Object.entries(node.properties).forEach(([key, value]) => {
-        if (key !== 'id' && key !== 'name' && key !== 'nodeType') {
+        // 排除问题特定字段和通用字段
+        if (
+          ![
+            'id',
+            'name',
+            'nodeType',
+            'problem_id',
+            'problem_type',
+            'description',
+          ].includes(key)
+        ) {
           nodeForm.dynamicFields.push({ key, value: String(value) });
         }
       });
@@ -216,12 +259,19 @@ const openNodeForm = (node?: NodeItem) => {
     nodeForm.id = '';
     nodeForm.label = 'Problem';
     nodeForm.name = '';
+    nodeForm.problemType = '';
+    nodeForm.problemId = '';
+    nodeForm.description = '';
     nodeForm.dynamicFields = [];
+
+    // 如果默认是问题类型，加载问题类型数据
+    if (nodeForm.label === 'Problem') {
+      loadProblemTypes();
+    }
   }
 
   nodeFormVisible.value = true;
 };
-
 // 打开创建节点表单
 const openCreateNodeForm = () => {
   openNodeForm();
@@ -238,18 +288,49 @@ const removeDynamicField = (index: number) => {
 };
 
 // 处理节点表单提交
+// 处理节点表单提交
+// 处理节点表单提交
 const handleNodeFormSubmit = async () => {
-  if (!nodeForm.name.trim()) {
-    message.error('节点名称不能为空');
-    return;
+  if (nodeForm.label === 'Problem') {
+    // 验证问题特定字段
+    if (!nodeForm.problemType) {
+      message.error('请选择问题类型');
+      return;
+    }
+    if (!nodeForm.description) {
+      message.error('问题描述不能为空');
+      return;
+    }
+  } else {
+    // 验证一般节点字段
+    if (!nodeForm.name.trim()) {
+      message.error('节点名称不能为空');
+      return;
+    }
   }
 
   // 构建节点数据
   const nodeData: any = {
     nodeType: nodeForm.label,
-    name: nodeForm.name,
     properties: {},
   };
+
+  // 根据节点类型设置属性
+  if (nodeForm.label === 'Problem') {
+    // 问题节点
+    nodeData.name = nodeForm.description.substring(0, 20) + '...'; // 截取描述作为显示名称
+    nodeData.properties.problem_type = nodeForm.problemType;
+    nodeData.properties.description = nodeForm.description;
+
+    // 如果是编辑模式且有问题ID，保留原ID
+    if (nodeForm.id && nodeForm.problemId) {
+      nodeData.properties.problem_id = nodeForm.problemId;
+    }
+    // 注意：新建问题节点时，problem_id 由后端生成
+  } else {
+    // 一般节点
+    nodeData.name = nodeForm.name;
+  }
 
   // 添加动态属性
   nodeForm.dynamicFields.forEach((field) => {
@@ -259,18 +340,25 @@ const handleNodeFormSubmit = async () => {
   });
 
   try {
-    let success;
+    let res;
     if (nodeForm.id) {
       // 更新节点
-      success = await updateNode(nodeForm.id, nodeData);
+      res = await updateNode(nodeForm.id, nodeData);
     } else {
       // 创建新节点
-      success = await createNode(nodeData);
+      res = await createNode(nodeData);
     }
 
-    if (success) {
+    if (res.success) {
       nodeFormVisible.value = false;
       await refreshGraph(); // 刷新图谱以显示新节点
+      message.success(
+        res.message || (nodeForm.id ? '节点更新成功' : '节点创建成功'),
+      );
+    } else {
+      message.error(
+        res.message || (nodeForm.id ? '节点更新失败' : '节点创建失败'),
+      );
     }
   } catch (error) {
     console.error('保存节点失败:', error);
@@ -392,25 +480,43 @@ const handleRelationFormSubmit = async () => {
   });
 
   try {
-    let success;
+    let res;
     if (relationForm.id) {
       // 更新关系
-      success = await updateRelation(relationForm.id, relationData);
+      res = await updateRelation(relationForm.id, relationData);
     } else {
       // 创建新关系
-      success = await createRelation(relationData);
+      res = await createRelation(relationData);
     }
 
-    if (success) {
+    if (res.success) {
       relationFormVisible.value = false;
       await refreshGraph(); // 刷新图谱以显示新关系
+      message.success(
+        res.message || (relationForm.id ? '关系更新成功' : '关系创建成功'),
+      );
+    } else {
+      message.error(
+        res.message || (relationForm.id ? '关系更新失败' : '关系创建失败'),
+      );
     }
   } catch (error) {
     console.error('保存关系失败:', error);
     message.error('保存关系失败');
   }
 };
-
+// 节点类型变更处理
+const handleNodeTypeChange = (value) => {
+  if (value === 'Problem') {
+    loadProblemTypes(); // 加载问题类型数据
+    nodeForm.name = ''; // 清空名称字段
+  } else {
+    // 清空问题相关字段
+    nodeForm.problemType = '';
+    nodeForm.problemId = '';
+    nodeForm.description = '';
+  }
+};
 // 删除关系
 const confirmDeleteRelation = (relationId: string) => {
   Modal.confirm({
@@ -428,6 +534,15 @@ const confirmDeleteRelation = (relationId: string) => {
       }
     },
   });
+};
+
+// 问题类型变更处理
+const handleProblemTypeChange = async (value) => {
+  // 清空问题ID，等待后端生成
+  nodeForm.problemId = '';
+
+  // 后端会根据问题类型生成ID，这里可以先清空，或者可以预览生成规则
+  // 实际生成的ID会在提交表单后由后端返回
 };
 
 // 打开创建关系表单
@@ -530,6 +645,7 @@ const openCreateRelationForm = () => {
     />
 
     <!-- 节点编辑对话框 -->
+    <!-- 节点编辑对话框 -->
     <Modal
       width="800px"
       v-model:visible="nodeFormVisible"
@@ -538,15 +654,41 @@ const openCreateRelationForm = () => {
     >
       <Form :model="nodeForm" layout="vertical">
         <Form.Item label="节点类型">
-          <Select v-model:value="nodeForm.label">
+          <Select v-model:value="nodeForm.label" @change="handleNodeTypeChange">
             <Select.Option value="Problem">问题</Select.Option>
             <Select.Option value="Step">步骤</Select.Option>
-            <Select.Option value="Entity">实体</Select.Option>
-            <Select.Option value="Concept">概念</Select.Option>
           </Select>
         </Form.Item>
 
-        <Form.Item label="名称">
+        <!-- 问题类型选择 - 仅在选择"问题"节点类型时显示 -->
+        <template v-if="nodeForm.label === 'Problem'">
+          <Form.Item label="问题类型">
+            <Select
+              v-model:value="nodeForm.problemType"
+              :loading="dictLoading"
+              @change="handleProblemTypeChange"
+            >
+              <Select.Option
+                v-for="item in problemTypeOptions"
+                :key="item.dictValue"
+                :value="item.dictValue"
+              >
+                {{ item.dictLabel }}
+              </Select.Option>
+            </Select>
+          </Form.Item>
+
+          <Form.Item label="问题ID" v-if="nodeForm.problemId">
+            <Input v-model:value="nodeForm.problemId" disabled />
+          </Form.Item>
+
+          <Form.Item label="问题描述">
+            <Input.TextArea v-model:value="nodeForm.description" :rows="4" />
+          </Form.Item>
+        </template>
+
+        <!-- 非问题节点的名称字段 -->
+        <Form.Item v-else label="名称">
           <Input v-model:value="nodeForm.name" />
         </Form.Item>
 
@@ -573,7 +715,6 @@ const openCreateRelationForm = () => {
         <Button @click="addDynamicField" type="dashed" block>添加属性</Button>
       </Form>
     </Modal>
-
     <!-- 关系编辑对话框 -->
     <Modal
       v-model:visible="relationFormVisible"

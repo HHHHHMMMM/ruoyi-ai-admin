@@ -15,3 +15,9 @@ export interface DictData {
   updateBy?: any;
   updateTime?: any;
 }
+
+// 定义返回类型
+export interface DictDataResponse {
+  total: number;
+  rows: DictData[];
+}

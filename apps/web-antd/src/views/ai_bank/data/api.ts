@@ -17,10 +17,10 @@ enum Api {
 
   // 直接操作Neo4j节点和关系
   createNode = '/knowledge/graph/node',
-  updateNode = '/knowledge/graph/node',
+  updateNode = '/knowledge/graph/node', // This is fine as the nodeId is appended in the function
   deleteNode = '/knowledge/graph/node',
   createRelation = '/knowledge/graph/relation',
-  updateRelation = '/knowledge/graph/relation',
+  updateRelation = '/knowledge/graph/relation', // This is fine as relationId is appended in the function
   deleteRelation = '/knowledge/graph/relation',
 }
 
@@ -96,21 +96,67 @@ export function findPath(params: {
  * 创建节点
  * @param nodeData 节点数据
  */
-export function createNode(nodeData: any) {
-  return requestClient.post(Api.createNode, nodeData, {
-    successMessageMode: 'message',
-  });
+export async function createNode(nodeData: any) {
+  // 特殊处理问题节点
+  if (nodeData.nodeType === 'Problem') {
+    return createProblemNode(nodeData);
+  }
+
+  // 处理其他类型节点
+  return requestClient.post(Api.createNode, nodeData);
 }
 
-/**
- * 更新节点
- * @param nodeId 节点ID
- * @param nodeData 节点数据
- */
-export function updateNode(nodeId: string, nodeData: any) {
-  return requestClient.put(`${Api.updateNode}/${nodeId}`, nodeData, {
-    successMessageMode: 'message',
-  });
+// 专门处理问题节点的创建
+export async function createProblemNode(nodeData: any) {
+  // 构建问题数据结构
+  const problemData = {
+    problemType: nodeData.properties.problem_type,
+    description: nodeData.properties.description,
+    // 注意：不包含problemId，由后端生成
+    // 其他自定义属性
+    attributes: Object.entries(nodeData.properties)
+      .filter(([key]) => !['problem_type', 'description'].includes(key))
+      .reduce<Record<string, any>>((acc, [key, value]) => {
+        acc[key] = value;
+        return acc;
+      }, {}),
+  };
+
+  // 调用专门的问题创建接口
+  return requestClient.post(Api.createNode, problemData);
+}
+
+// 更新节点的API接口更新
+export async function updateNode(nodeId: string, nodeData: any) {
+  // 特殊处理问题节点
+  if (nodeData.nodeType === 'Problem') {
+    return updateProblemNode(nodeId, nodeData);
+  }
+
+  // 处理其他类型节点
+  return requestClient.put(`${Api.updateNode}/${nodeId}`, nodeData);
+}
+
+// 专门处理问题节点的更新
+export async function updateProblemNode(nodeId: string, nodeData: any) {
+  // 构建问题数据结构
+  const problemData = {
+    problemId: nodeData.properties.problem_id, // 这里包含problemId，因为是更新操作
+    problemType: nodeData.properties.problem_type,
+    description: nodeData.properties.description,
+    // 其他自定义属性
+    attributes: Object.entries(nodeData.properties)
+      .filter(
+        ([key]) => !['problem_id', 'problem_type', 'description'].includes(key),
+      )
+      .reduce<Record<string, any>>((acc, [key, value]) => {
+        acc[key] = value;
+        return acc;
+      }, {}),
+  };
+
+  // 调用专门的问题更新接口
+  return requestClient.put(`${Api.updateNode}/${nodeId}`, problemData);
 }
 
 /**

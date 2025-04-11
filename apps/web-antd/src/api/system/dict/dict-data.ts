@@ -1,4 +1,4 @@
-import type { DictData } from './dict-data-model';
+import type { DictData, DictDataResponse } from './dict-data-model';
 
 import type { ID, IDS, PageQuery } from '#/api/common';
 
@@ -27,6 +27,10 @@ export function dictDataInfo(dictType: string) {
  */
 export function dictDataList(params?: PageQuery) {
   return requestClient.get<DictData[]>(Api.dictDataList, { params });
+}
+
+export function dictDataList4AiBank(params?: PageQuery) {
+  return requestClient.get<DictDataResponse[]>(Api.dictDataList, { params });
 }
 
 /**
