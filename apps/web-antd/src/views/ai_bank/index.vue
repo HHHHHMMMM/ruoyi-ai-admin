@@ -12,10 +12,7 @@ import {
   Row,
   Col,
 } from 'ant-design-vue';
-import type {
-  DictData,
-  DictDataResponse,
-} from '#/api/system/dict/dict-data-model';
+import type { DictData } from '#/api/system/dict/dict-data-model';
 
 import {
   ReloadOutlined,
@@ -288,8 +285,6 @@ const removeDynamicField = (index: number) => {
 };
 
 // 处理节点表单提交
-// 处理节点表单提交
-// 处理节点表单提交
 const handleNodeFormSubmit = async () => {
   if (nodeForm.label === 'Problem') {
     // 验证问题特定字段
@@ -340,26 +335,16 @@ const handleNodeFormSubmit = async () => {
   });
 
   try {
-    let res;
     if (nodeForm.id) {
       // 更新节点
-      res = await updateNode(nodeForm.id, nodeData);
+      await updateNode(nodeForm.id, nodeData);
     } else {
       // 创建新节点
-      res = await createNode(nodeData);
+      await createNode(nodeData);
     }
-
-    if (res.success) {
-      nodeFormVisible.value = false;
-      await refreshGraph(); // 刷新图谱以显示新节点
-      message.success(
-        res.message || (nodeForm.id ? '节点更新成功' : '节点创建成功'),
-      );
-    } else {
-      message.error(
-        res.message || (nodeForm.id ? '节点更新失败' : '节点创建失败'),
-      );
-    }
+    nodeFormVisible.value = false;
+    await refreshGraph(); // 刷新图谱以显示新节点
+    message.success(nodeForm.id ? '节点更新成功' : '节点创建成功');
   } catch (error) {
     console.error('保存节点失败:', error);
     message.error('保存节点失败');
@@ -385,6 +370,7 @@ const confirmDeleteNode = (nodeId: string) => {
     onOk: async () => {
       try {
         await deleteNode(nodeId);
+        await refreshGraph(); // 刷新图谱以显示新关系
       } catch (error) {
         console.error('删除节点失败:', error);
         message.error('删除节点失败');
@@ -625,6 +611,7 @@ const openCreateRelationForm = () => {
           @edit-node="openNodeForm"
           @node-click="handleNodeClick"
           @edit-relation="handleEditRelation"
+          @delete-node="confirmDeleteNode"
         />
       </div>
     </div>
@@ -638,7 +625,6 @@ const openCreateRelationForm = () => {
       @expand-relations="expandNodeRelations"
       @node-click="handleNodeClick"
       @edit-node="openNodeForm"
-      @delete-node="confirmDeleteNode"
       @add-relation="openRelationForm"
       @edit-relation="openRelationForm"
       @delete-relation="confirmDeleteRelation"

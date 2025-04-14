@@ -634,8 +634,8 @@ const registerGraphEvents = () => {
     const { edge } = evt;
     if (edge) {
       const model = edge.getModel();
-      const sourceId = model.source;
-      const targetId = model.target;
+      const sourceId = model.originalSource || model.source.replace('n-', '');
+      const targetId = model.originalTarget || model.target.replace('n-', '');
 
       // 发出添加边事件
       emit('add-edge', {
@@ -684,19 +684,22 @@ const openNodeContextMenu = (x: number, y: number, node: any) => {
 
   // Edit node
   const editItem = createMenuItem('编辑节点', () => {
-    emit('edit-node', node);
+    emit('edit-node', {
+      ...node,
+      id: node.originalId || node.id.replace('n-', ''),
+    });
   });
   menu.appendChild(editItem);
 
   // Expand relationships
   const expandItem = createMenuItem('展开关系', () => {
-    emit('expand-node', node.id);
+    emit('expand-node', node.originalId || node.id.replace('n-', ''));
   });
   menu.appendChild(expandItem);
 
   // Delete node
   const deleteItem = createMenuItem('删除节点', () => {
-    emit('delete-node', node.id);
+    emit('delete-node', node.originalId || node.id.replace('n-', ''));
   });
   menu.appendChild(deleteItem);
 
@@ -821,7 +824,7 @@ const openEdgeContextMenu = (x: number, y: number, edge: any) => {
 
   // Delete relationship
   const deleteItem = createMenuItem('删除关系', () => {
-    emit('delete-edge', edge.id);
+    emit('delete-edge', edge.originalId || edge.id.replace('e-', ''));
   });
   menu.appendChild(deleteItem);
 
