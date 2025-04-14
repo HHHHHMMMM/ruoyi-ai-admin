@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, onMounted, computed } from 'vue';
 import { Page } from '@vben/common-ui';
 import {
   message,
@@ -36,10 +36,10 @@ import {
   updateNode,
   deleteNode,
   createRelation,
-  updateRelation,
   deleteRelation,
   listProblemIds,
   createStepNode,
+  getStepsByProblemId,
 } from './data/api';
 import { useGraphData } from './hooks/useGraphData';
 import type { NodeItem } from './data/types';
@@ -68,6 +68,74 @@ const {
 onMounted(async () => {
   await refreshGraph();
 });
+
+// 关系表单相关
+const relationForm = reactive({
+  id: '',
+  type: 'NEXT_DEFAULT',
+  problemId: '',
+  sourceId: '',
+  targetId: '',
+  conditionExpression: '',
+  dynamicFields: [] as { key: string; value: string }[],
+});
+
+// 步骤列表相关
+const steps = ref<any[]>([]);
+const stepsLoading = ref(false);
+const filteredSteps = computed(() => {
+  // 根据选择的问题ID过滤步骤
+  return steps.value.filter(
+    (step) => step.problemId === relationForm.problemId,
+  );
+});
+
+// 加载特定问题的步骤列表
+const loadStepsByProblemId = async (problemId: string) => {
+  if (!problemId) return;
+
+  stepsLoading.value = true;
+  try {
+    // 这里假设有一个API来获取特定问题的步骤
+    const res = await getStepsByProblemId(problemId);
+    if (res && res.data) {
+      steps.value = res.data;
+    } else if (res) {
+      steps.value = Array.isArray(res) ? res : [];
+    } else {
+      steps.value = [];
+    }
+  } catch (error) {
+    console.error('加载步骤列表失败:', error);
+    message.error('加载步骤列表失败');
+    steps.value = [];
+  } finally {
+    stepsLoading.value = false;
+  }
+};
+
+// 处理问题ID变更
+const handleProblemIdChange = (value: string) => {
+  // 清空源节点和目标节点
+  relationForm.sourceId = '';
+  relationForm.targetId = '';
+
+  // 加载该问题的步骤列表
+  loadStepsByProblemId(value);
+};
+
+// 处理关系类型变更
+const handleRelationTypeChange = (value: string) => {
+  // 如果选择FIRST_STEP，清空源节点
+  if (value === 'FIRST_STEP') {
+    relationForm.sourceId = '';
+  }
+
+  // 如果不是NEXT_IF，清空条件表达式
+  if (value !== 'NEXT_IF') {
+    relationForm.conditionExpression = '';
+  }
+};
 
 // 加载问题ID列表
 const loadProblemIds = async () => {
@@ -498,15 +566,6 @@ const confirmDeleteNode = (nodeId: string) => {
   });
 };
 
-// 关系表单相关
-const relationForm = reactive({
-  id: '',
-  sourceId: '',
-  targetId: '',
-  type: '',
-  dynamicFields: [] as { key: string; value: string }[],
-});
-
 const relationFormVisible = ref(false);
 
 // 打开添加关系表单
@@ -515,99 +574,95 @@ const openRelationForm = (
   targetId?: string,
   relation?: any,
 ) => {
-  console.log(relation);
   if (relation) {
     // 编辑现有关系
     relationForm.id = relation.id;
-    relationForm.sourceId = relation.source;
-    relationForm.targetId = relation.target;
-    relationForm.type = relation.relationLabel;
+    relationForm.type = relation.type || 'NEXT_DEFAULT';
+    relationForm.problemId = relation.problemId || '';
+    relationForm.sourceId = relation.source || sourceId || '';
+    relationForm.targetId = relation.target || targetId || '';
+    relationForm.conditionExpression = relation.properties?.condition || '';
 
-    // 填充动态字段
-    relationForm.dynamicFields = [];
-    if (relation.properties) {
-      Object.entries(relation.properties).forEach(([key, value]) => {
-        relationForm.dynamicFields.push({ key, value: String(value) });
-      });
+    // 加载相关步骤
+    if (relationForm.problemId) {
+      loadStepsByProblemId(relationForm.problemId);
     }
   } else {
     // 新建关系
     relationForm.id = '';
+    relationForm.type = 'NEXT_DEFAULT';
+    relationForm.problemId = '';
     relationForm.sourceId = sourceId || '';
     relationForm.targetId = targetId || '';
-    relationForm.type = '';
-    relationForm.dynamicFields = [];
+    relationForm.conditionExpression = '';
+
+    // 清空步骤列表
+    steps.value = [];
   }
+
+  // 确保先加载问题ID列表
+  loadProblemIds();
 
   relationFormVisible.value = true;
 };
-
-// 添加关系属性字段
-const addRelationDynamicField = () => {
-  relationForm.dynamicFields.push({ key: '', value: '' });
-};
-
-// 删除关系属性字段
-const removeRelationDynamicField = (index: number) => {
-  relationForm.dynamicFields.splice(index, 1);
-};
-
 // 处理关系表单提交
 const handleRelationFormSubmit = async () => {
-  if (!relationForm.sourceId) {
-    message.error('请选择源节点');
+  // 验证表单
+  if (!relationForm.problemId) {
+    message.error('请选择问题ID');
+    return;
+  }
+
+  if (relationForm.type !== 'FIRST_STEP' && !relationForm.sourceId) {
+    message.error('请选择起始步骤');
     return;
   }
 
   if (!relationForm.targetId) {
-    message.error('请选择目标节点');
+    message.error('请选择目标步骤');
     return;
   }
 
-  if (!relationForm.type) {
-    message.error('请选择关系类型');
+  if (relationForm.type === 'NEXT_IF' && !relationForm.conditionExpression) {
+    message.error('请输入条件表达式');
     return;
   }
 
   // 构建关系数据
   const relationData: any = {
-    sourceId: relationForm.sourceId,
-    targetId: relationForm.targetId,
-    type: relationForm.type,
-    properties: {},
+    relationType: relationForm.type,
+    problemId: relationForm.problemId,
+    toStepId: parseInt(relationForm.targetId),
+    conditionExpression: relationForm.conditionExpression,
   };
 
-  // 添加动态属性
-  relationForm.dynamicFields.forEach((field) => {
-    if (field.key && field.key.trim()) {
-      relationData.properties[field.key] = field.value;
-    }
-  });
+  // 只有在非FIRST_STEP关系中才设置fromStepId
+  if (relationForm.type !== 'FIRST_STEP') {
+    relationData.fromStepId = parseInt(relationForm.sourceId);
+  }
 
   try {
-    let res;
-    if (relationForm.id) {
-      // 更新关系
-      res = await updateRelation(relationForm.id, relationData);
-    } else {
-      // 创建新关系
-      res = await createRelation(relationData);
-    }
+    // 调用创建步骤关系的API
+    const res = await createRelation(relationData);
 
-    if (res.success) {
+    if (res && res.code === 200) {
       relationFormVisible.value = false;
       await refreshGraph(); // 刷新图谱以显示新关系
-      message.success(
-        res.message || (relationForm.id ? '关系更新成功' : '关系创建成功'),
-      );
+      message.success(res.msg || '关系创建成功');
+    } else if (res) {
+      message.error(res.msg || '关系创建失败');
     } else {
-      message.error(
-        res.message || (relationForm.id ? '关系更新失败' : '关系创建失败'),
-      );
+      // 假设请求成功但没有合适的返回值
+      relationFormVisible.value = false;
+      await refreshGraph();
+      message.success('关系创建成功');
     }
   } catch (error) {
     console.error('保存关系失败:', error);
-    message.error('保存关系失败');
+    message.error(
+      '保存关系失败: ' +
+        (error instanceof Error ? error.message : String(error)),
+    );
   }
 };
 // 节点类型变更处理
@@ -938,72 +993,96 @@ const openCreateRelationForm = () => {
       @ok="handleRelationFormSubmit"
     >
       <Form :model="relationForm" layout="vertical">
-        <Form.Item label="源节点">
-          <Select v-model:value="relationForm.sourceId">
+        <!-- 关系类型选择 -->
+        <Form.Item label="关系类型" required>
+          <Select
+            v-model:value="relationForm.type"
+            @change="handleRelationTypeChange"
+          >
+            <Select.Option value="NEXT_DEFAULT">默认下一步</Select.Option>
+            <Select.Option value="NEXT_IF">条件下一步</Select.Option>
+            <Select.Option value="FIRST_STEP">第一步</Select.Option>
+          </Select>
+        </Form.Item>
+
+        <!-- 问题ID选择 -->
+        <Form.Item label="问题ID" required>
+          <Select
+            v-model:value="relationForm.problemId"
+            placeholder="请选择关联的问题ID"
+            :loading="problemIdsLoading"
+            show-search
+            :filter-option="filterProblemOptions"
+            @change="handleProblemIdChange"
+          >
             <Select.Option
-              v-for="node in graphData.nodes"
-              :key="node.id"
-              :value="node.id"
+              v-for="item in problemIds"
+              :key="item.problemId"
+              :value="item.problemId"
             >
-              {{ node.label || node.id }}
+              {{ item.problemId }} -
+              {{
+                item.description
+                  ? item.description.length > 20
+                    ? item.description.substring(0, 20) + '...'
+                    : item.description
+                  : ''
+              }}
             </Select.Option>
           </Select>
         </Form.Item>
 
-        <Form.Item label="目标节点">
-          <Select v-model:value="relationForm.targetId">
-            <Select.Option
-              v-for="node in graphData.nodes"
-              :key="node.id"
-              :value="node.id"
-            >
-              {{ node.label || node.id }}
-            </Select.Option>
-          </Select>
-        </Form.Item>
-
-        <Form.Item label="关系类型">
-          <Select v-model:value="relationForm.type">
-            <Select.Option value="CONTAINS">包含</Select.Option>
-            <Select.Option value="RELATED_TO">相关</Select.Option>
-            <Select.Option value="DEPENDS_ON">依赖</Select.Option>
-            <Select.Option value="IS_A">是一种</Select.Option>
-          </Select>
-        </Form.Item>
-
-        <!-- 动态属性表单 -->
-        <div v-for="(field, index) in relationForm.dynamicFields" :key="index">
-          <Row :gutter="16" type="flex" align="middle">
-            <Col :span="10">
-              <Form.Item label="属性名">
-                <Input v-model:value="field.key" />
-              </Form.Item>
-            </Col>
-            <Col :span="10">
-              <Form.Item label="属性值">
-                <Input v-model:value="field.value" />
-              </Form.Item>
-            </Col>
-            <Col :span="4">
-              <div
-                style="
-                  display: flex;
-                  align-items: center;
-                  height: 32px;
-                  margin-top: 20px;
-                "
-              >
-                <Button @click="removeRelationDynamicField(index)" danger
-                  >删除</Button
-                >
-              </div>
-            </Col>
-          </Row>
-        </div>
-
-        <Button @click="addRelationDynamicField" type="dashed" block
-          >添加属性</Button
+        <!-- 起始节点选择 - 对于NEXT_DEFAULT和NEXT_IF显示 -->
+        <Form.Item
+          v-if="relationForm.type !== 'FIRST_STEP'"
+          label="起始步骤"
+          required
         >
+          <Select
+            v-model:value="relationForm.sourceId"
+            placeholder="请选择起始步骤"
+            :loading="stepsLoading"
+          >
+            <Select.Option
+              v-for="step in filteredSteps"
+              :key="step.stepId"
+              :value="step.stepId"
+            >
+              步骤{{ step.stepId }}:
+              {{ step.operation === 'query' ? '查询' : '回复' }}
+            </Select.Option>
+          </Select>
+        </Form.Item>
+
+        <Form.Item label="目标步骤" required>
+          <Select
+            v-model:value="relationForm.targetId"
+            placeholder="请选择目标步骤"
+            :loading="stepsLoading"
+          >
+            <Select.Option
+              v-for="step in filteredSteps"
+              :key="step.stepId"
+              :value="step.stepId"
+            >
+              步骤{{ step.stepId }}:
+              {{ step.operation === 'query' ? '查询' : '回复' }}
+            </Select.Option>
+          </Select>
+        </Form.Item>
+
+        <!-- 条件表达式 - 只在NEXT_IF时显示 -->
+        <Form.Item
+          v-if="relationForm.type === 'NEXT_IF'"
+          label="条件表达式"
+          required
+        >
+          <Input.TextArea
+            v-model:value="relationForm.conditionExpression"
+            placeholder="请输入条件表达式，例如：field1 == 'value1'"
+            :rows="3"
+          />
+        </Form.Item>
       </Form>
     </Modal>
   </Page>

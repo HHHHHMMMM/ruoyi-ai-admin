@@ -274,3 +274,21 @@ export async function createStepNode(stepData: any) {
     };
   }
 }
+
+export async function getStepsByProblemId(problemId: string) {
+  try {
+    const response = await requestClient.get(`/knowledge/graph/${problemId}`);
+    return {
+      success: true,
+      data: response?.rows || response || [],
+      message: '获取步骤列表成功',
+    };
+  } catch (error) {
+    console.error('获取步骤列表失败:', error);
+    return {
+      success: false,
+      data: [],
+      message: error instanceof Error ? error.message : '获取步骤列表失败',
+    };
+  }
+}
