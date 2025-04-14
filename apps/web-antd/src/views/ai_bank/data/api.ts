@@ -17,11 +17,14 @@ enum Api {
 
   // 直接操作Neo4j节点和关系
   createNode = '/knowledge/graph/node',
+  createStepNode = '/knowledge/graph/stepNode',
+
   updateNode = '/knowledge/graph/node', // This is fine as the nodeId is appended in the function
   deleteNode = '/knowledge/graph/node',
   createRelation = '/knowledge/graph/relation',
   updateRelation = '/knowledge/graph/relation', // This is fine as relationId is appended in the function
   deleteRelation = '/knowledge/graph/relation',
+  listProblemIds = '/knowledge/graph/problemIds',
 }
 
 /**
@@ -103,7 +106,7 @@ export async function createNode(nodeData: any) {
   }
 
   // 处理其他类型节点
-  return requestClient.post(Api.createNode, nodeData);
+  return requestClient.post(Api.createStepNode, nodeData);
 }
 
 // 专门处理问题节点的创建
@@ -209,3 +212,65 @@ export const fetchNodeRelationsApi = getNodeRelations;
 export const searchNodesApi = (keyword: string) => {
   return searchNodes({ keyword });
 };
+
+/**
+ * 获取所有problem的problem_id
+ * */
+export async function listProblemIds() {
+  try {
+    const response = await requestClient.get(Api.listProblemIds);
+    return {
+      success: true,
+      data: response?.rows || response || [],
+      message: '获取问题列表成功',
+    };
+  } catch (error) {
+    console.error('获取问题列表失败:', error);
+    return {
+      success: false,
+      data: [],
+      message: error instanceof Error ? error.message : '获取问题列表失败',
+    };
+  }
+}
+
+export async function createStepNode(stepData: any) {
+  try {
+    // 转换数据结构
+    const step = {
+      problemId: stepData.properties.problem_id,
+      stepId: stepData.properties.step_id,
+      operation: stepData.properties.operation,
+      systemA: stepData.properties.system_a,
+      tableName: stepData.properties.table_name,
+      field: stepData.properties.field,
+      conditionSql: stepData.properties.condition_sql,
+      replyContent: stepData.properties.reply_content,
+    };
+
+    const response = await requestClient.post(Api.createStepNode, step);
+
+    // 处理响应
+    if (response === null) {
+      return { success: true, message: 'step节点创建成功', data: null };
+    }
+
+    if (typeof response !== 'object' || !('code' in response)) {
+      return { success: true, message: '操作完成', data: response };
+    }
+
+    return {
+      success: response.code === 200,
+      message:
+        response.msg || (response.code === 200 ? '操作成功' : '操作失败'),
+      data: response.data,
+    };
+  } catch (error) {
+    console.error('创建Step节点失败:', error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : '未知错误',
+      data: null,
+    };
+  }
+}

@@ -38,6 +38,8 @@ import {
   createRelation,
   updateRelation,
   deleteRelation,
+  listProblemIds,
+  createStepNode,
 } from './data/api';
 import { useGraphData } from './hooks/useGraphData';
 import type { NodeItem } from './data/types';
@@ -45,7 +47,9 @@ import { dictDataList4AiBank } from '#/api/system/dict/dict-data';
 // 节点详情抽屉
 const drawerVisible = ref(false);
 const selectedNode = ref<NodeItem | null>(null);
-
+// 添加问题ID列表相关的响应式数据
+const problemIds = ref<any[]>([]);
+const problemIdsLoading = ref(false);
 // 图谱查看器引用
 const graphViewerRef = ref(null);
 
@@ -64,6 +68,33 @@ const {
 onMounted(async () => {
   await refreshGraph();
 });
+
+// 加载问题ID列表
+const loadProblemIds = async () => {
+  problemIdsLoading.value = true;
+  try {
+    const res = await listProblemIds();
+    if (res.success) {
+      problemIds.value = res.data;
+    } else {
+      message.error(res.message || '加载问题列表失败');
+    }
+  } catch (error) {
+    console.error('加载问题列表失败:', error);
+    message.error('加载问题列表失败');
+  } finally {
+    problemIdsLoading.value = false;
+  }
+};
+
+// 问题ID选项过滤函数
+const filterProblemOptions = (input: string, option: any) => {
+  const problemId = option.value?.toString().toLowerCase() || '';
+  const description = option.children[0]?.toString().toLowerCase() || '';
+  const searchText = input.toLowerCase();
+
+  return problemId.includes(searchText) || description.includes(searchText);
+};
 
 // 刷新图谱
 const refreshGraph = async () => {
@@ -190,10 +221,20 @@ const nodeForm = reactive({
   id: '',
   label: 'Problem',
   name: '',
-  // 新增字段
+  // 问题节点字段
   problemType: '',
   problemId: '',
   description: '',
+  // Step节点字段
+  stepProblemId: '',
+  stepId: null,
+  operation: 'query',
+  systemA: '',
+  tableName: '',
+  field: '',
+  conditionSql: '',
+  replyContent: '',
+  // 动态字段
   dynamicFields: [] as { key: string; value: string }[],
 });
 const problemTypeOptions = ref<DictData[]>([]);
@@ -214,8 +255,8 @@ const loadProblemTypes = async () => {
   }
 };
 // 打开节点编辑表单
+// 更新openNodeForm函数，处理Step节点的信息
 const openNodeForm = (node?: NodeItem) => {
-  console.log(node);
   if (node) {
     // 编辑现有节点
     nodeForm.id = node.id;
@@ -227,16 +268,36 @@ const openNodeForm = (node?: NodeItem) => {
       nodeForm.problemId = node.properties?.problem_id || '';
       nodeForm.description = node.properties?.description || '';
       loadProblemTypes(); // 加载问题类型数据
-    } else {
-      // 非问题节点
-      nodeForm.name = node.label || '';
+    } else if (node.nodeType === 'Step') {
+      loadProblemIds();
+      // 是Step节点，填充Step特定字段
+      nodeForm.stepProblemId = node.properties?.problem_id || '';
+      nodeForm.stepId = node.properties?.step_id || null;
+      nodeForm.operation = node.properties?.operation || 'query';
+
+      // 根据操作类型加载相应的字段
+      if (nodeForm.operation === 'query') {
+        nodeForm.systemA = node.properties?.system_a || '';
+        nodeForm.tableName = node.properties?.table_name || '';
+        nodeForm.field = node.properties?.field || '';
+        nodeForm.conditionSql = node.properties?.condition_sql || '';
+      } else {
+        // 清空查询相关字段
+        nodeForm.systemA = '';
+        nodeForm.tableName = '';
+        nodeForm.field = '';
+        nodeForm.conditionSql = '';
+      }
+
+      // 无论操作类型如何，都加载回复内容
+      nodeForm.replyContent = node.properties?.reply_content || '';
     }
 
     // 填充动态字段
     nodeForm.dynamicFields = [];
     if (node.properties) {
       Object.entries(node.properties).forEach(([key, value]) => {
-        // 排除问题特定字段和通用字段
+        // 排除问题特定字段和Step特定字段
         if (
           ![
             'id',
@@ -245,6 +306,13 @@ const openNodeForm = (node?: NodeItem) => {
             'problem_id',
             'problem_type',
             'description',
+            'step_id',
+            'operation',
+            'system_a',
+            'table_name',
+            'field',
+            'condition_sql',
+            'reply_content',
           ].includes(key)
         ) {
           nodeForm.dynamicFields.push({ key, value: String(value) });
@@ -256,9 +324,20 @@ const openNodeForm = (node?: NodeItem) => {
     nodeForm.id = '';
     nodeForm.label = 'Problem';
     nodeForm.name = '';
+    // 清空问题字段
     nodeForm.problemType = '';
     nodeForm.problemId = '';
     nodeForm.description = '';
+    // 清空Step字段
+    nodeForm.stepProblemId = '';
+    nodeForm.stepId = null;
+    nodeForm.operation = 'query';
+    nodeForm.systemA = '';
+    nodeForm.tableName = '';
+    nodeForm.field = '';
+    nodeForm.conditionSql = '';
+    nodeForm.replyContent = '';
+    // 清空动态字段
     nodeForm.dynamicFields = [];
 
     // 如果默认是问题类型，加载问题类型数据
@@ -285,6 +364,7 @@ const removeDynamicField = (index: number) => {
 };
 
 // 处理节点表单提交
+// 更新handleNodeFormSubmit函数，处理不同类型节点的提交
 const handleNodeFormSubmit = async () => {
   if (nodeForm.label === 'Problem') {
     // 验证问题特定字段
@@ -294,6 +374,20 @@ const handleNodeFormSubmit = async () => {
     }
     if (!nodeForm.description) {
       message.error('问题描述不能为空');
+      return;
+    }
+  } else if (nodeForm.label === 'Step') {
+    // 验证Step特定字段
+    if (!nodeForm.stepProblemId) {
+      message.error('问题ID不能为空');
+      return;
+    }
+    if (!nodeForm.stepId) {
+      message.error('步骤ID不能为空');
+      return;
+    }
+    if (!nodeForm.operation) {
+      message.error('操作类型不能为空');
       return;
     }
   } else {
@@ -322,6 +416,25 @@ const handleNodeFormSubmit = async () => {
       nodeData.properties.problem_id = nodeForm.problemId;
     }
     // 注意：新建问题节点时，problem_id 由后端生成
+  } else if (nodeForm.label === 'Step') {
+    // Step节点
+    nodeData.name = `步骤${nodeForm.stepId}: ${nodeForm.operation === 'query' ? '查询' : '回复'}`; // 使用步骤ID和操作类型作为显示名称
+    nodeData.properties.problem_id = nodeForm.stepProblemId;
+    nodeData.properties.step_id = nodeForm.stepId;
+    nodeData.properties.operation = nodeForm.operation;
+
+    // 根据操作类型添加相应的属性
+    if (nodeForm.operation === 'query') {
+      // 添加查询操作相关的非空属性
+      if (nodeForm.systemA) nodeData.properties.system_a = nodeForm.systemA;
+      if (nodeForm.tableName)
+        nodeData.properties.table_name = nodeForm.tableName;
+      if (nodeForm.field) nodeData.properties.field = nodeForm.field;
+      if (nodeForm.conditionSql)
+        nodeData.properties.condition_sql = nodeForm.conditionSql;
+    }
+    if (nodeForm.replyContent)
+      nodeData.properties.reply_content = nodeForm.replyContent;
   } else {
     // 一般节点
     nodeData.name = nodeForm.name;
@@ -335,22 +448,28 @@ const handleNodeFormSubmit = async () => {
   });
 
   try {
+    let res;
     if (nodeForm.id) {
       // 更新节点
-      await updateNode(nodeForm.id, nodeData);
-    } else {
+      res = await updateNode(nodeForm.id, nodeData);
+    } else if (nodeForm.label === 'Step') {
       // 创建新节点
-      await createNode(nodeData);
+      res = await createStepNode(nodeData);
+    } else {
+      res = await createNode(nodeData);
     }
+
+    // 处理响应
     nodeFormVisible.value = false;
     await refreshGraph(); // 刷新图谱以显示新节点
-    message.success(nodeForm.id ? '节点更新成功' : '节点创建成功');
+    message.success(
+      res.message || (nodeForm.id ? '节点更新成功' : '节点创建成功'),
+    );
   } catch (error) {
     console.error('保存节点失败:', error);
     message.error('保存节点失败');
   }
 };
-
 const handleEditRelation = (relation) => {
   if (relation) {
     console.log('Received in parent:', relation);
@@ -495,12 +614,35 @@ const handleRelationFormSubmit = async () => {
 const handleNodeTypeChange = (value) => {
   if (value === 'Problem') {
     loadProblemTypes(); // 加载问题类型数据
-    nodeForm.name = ''; // 清空名称字段
-  } else {
-    // 清空问题相关字段
+    // 清空Step字段
+    nodeForm.stepProblemId = '';
+    nodeForm.stepId = null;
+    nodeForm.operation = 'query';
+    nodeForm.systemA = '';
+    nodeForm.tableName = '';
+    nodeForm.field = '';
+    nodeForm.conditionSql = '';
+    nodeForm.replyContent = '';
+  } else if (value === 'Step') {
+    loadProblemIds();
+    // 清空问题字段
     nodeForm.problemType = '';
     nodeForm.problemId = '';
     nodeForm.description = '';
+    nodeForm.name = '';
+  } else {
+    // 清空问题和Step相关字段
+    nodeForm.problemType = '';
+    nodeForm.problemId = '';
+    nodeForm.description = '';
+    nodeForm.stepProblemId = '';
+    nodeForm.stepId = null;
+    nodeForm.operation = 'query';
+    nodeForm.systemA = '';
+    nodeForm.tableName = '';
+    nodeForm.field = '';
+    nodeForm.conditionSql = '';
+    nodeForm.replyContent = '';
   }
 };
 // 删除关系
@@ -529,6 +671,17 @@ const handleProblemTypeChange = async (value) => {
 
   // 后端会根据问题类型生成ID，这里可以先清空，或者可以预览生成规则
   // 实际生成的ID会在提交表单后由后端返回
+};
+// 处理步骤ID输入变更，确保是数字类型
+const handleStepIdChange = (value) => {
+  // 将字符串转换为数字
+  const numValue = parseInt(value, 10);
+  if (!isNaN(numValue) && numValue >= 1) {
+    nodeForm.stepId = numValue;
+  } else {
+    // 如果输入无效，可以设置为null或保持原值
+    nodeForm.stepId = null;
+  }
 };
 
 // 打开创建关系表单
@@ -631,7 +784,6 @@ const openCreateRelationForm = () => {
     />
 
     <!-- 节点编辑对话框 -->
-    <!-- 节点编辑对话框 -->
     <Modal
       width="800px"
       v-model:visible="nodeFormVisible"
@@ -673,7 +825,85 @@ const openCreateRelationForm = () => {
           </Form.Item>
         </template>
 
-        <!-- 非问题节点的名称字段 -->
+        <!-- Step节点的特定字段 -->
+        <template v-else-if="nodeForm.label === 'Step'">
+          <Form.Item label="问题ID" required>
+            <Select
+              v-model:value="nodeForm.stepProblemId"
+              placeholder="请选择关联的问题ID"
+              :loading="problemIdsLoading"
+              show-search
+              :filter-option="filterProblemOptions"
+            >
+              <Select.Option
+                v-for="item in problemIds"
+                :key="item.problemId"
+                :value="item.problemId"
+              >
+                {{ item.problemId }} -
+                {{
+                  item.description
+                    ? item.description.length > 20
+                      ? item.description.substring(0, 20) + '...'
+                      : item.description
+                    : ''
+                }}
+              </Select.Option>
+            </Select>
+          </Form.Item>
+
+          <Form.Item label="步骤ID" required>
+            <Input
+              v-model:value="nodeForm.stepId"
+              type="number"
+              placeholder="步骤序号"
+              :min="1"
+              @change="(e) => handleStepIdChange(e.target.value)"
+            />
+          </Form.Item>
+
+          <Form.Item label="操作类型" required>
+            <Select v-model:value="nodeForm.operation">
+              <Select.Option value="query">查询</Select.Option>
+              <Select.Option value="reply">回复</Select.Option>
+            </Select>
+          </Form.Item>
+          <template v-if="nodeForm.operation === 'query'">
+            <Form.Item label="系统名称">
+              <Input v-model:value="nodeForm.systemA" placeholder="相关系统" />
+            </Form.Item>
+
+            <Form.Item label="表名">
+              <Input
+                v-model:value="nodeForm.tableName"
+                placeholder="相关表名"
+              />
+            </Form.Item>
+
+            <Form.Item label="字段">
+              <Input v-model:value="nodeForm.field" placeholder="相关字段" />
+            </Form.Item>
+
+            <Form.Item label="条件SQL">
+              <Input.TextArea
+                v-model:value="nodeForm.conditionSql"
+                :rows="2"
+                placeholder="查询条件"
+              />
+            </Form.Item>
+          </template>
+          <template v-if="nodeForm.operation === 'reply'">
+            <Form.Item label="回复内容">
+              <Input.TextArea
+                v-model:value="nodeForm.replyContent"
+                :rows="3"
+                placeholder="回复内容"
+              />
+            </Form.Item>
+          </template>
+        </template>
+
+        <!-- 其他节点类型的名称字段 -->
         <Form.Item v-else label="名称">
           <Input v-model:value="nodeForm.name" />
         </Form.Item>
