@@ -25,6 +25,7 @@ enum Api {
   updateRelation = '/knowledge/graph/relation', // This is fine as relationId is appended in the function
   deleteRelation = '/knowledge/graph/relation',
   listProblemIds = '/knowledge/graph/problemIds',
+  filterProblems = '/knowledge/graph/searchProblem',
 }
 
 /**
@@ -81,6 +82,15 @@ export function searchNodes(params: {
   searchMode?: string;
 }) {
   return requestClient.get<GraphDataResult>(Api.searchNodes, { params });
+}
+/**
+ * 搜索问题节点及其对应的边
+ * */
+export function searchProblemGraph(params: {
+  keyword: string;
+  searchMode?: string;
+}) {
+  return requestClient.get<GraphDataResult>(Api.filterProblems, { params });
 }
 
 /**

@@ -10,6 +10,7 @@ import {
   createRelation as createRelationApi,
   updateRelation as updateRelationApi,
   deleteRelation as deleteRelationApi,
+  searchProblemGraph,
 } from '../data/api';
 import type { GraphData, PathAnalysisParams } from '../data/types';
 import { GraphUtils } from '../data/graphUtils';
@@ -82,6 +83,7 @@ export function useGraphData() {
    * 搜索节点
    * @param params 搜索参数
    */
+  // 在包含 searchNodes 方法的文件中修改
   const searchNodes = async (params: any) => {
     try {
       loading.value = true;
@@ -89,25 +91,48 @@ export function useGraphData() {
       // 如果只是关键词字符串，转为对象
       const searchParams =
         typeof params === 'string'
-          ? { keyword: params, searchType: 'all', searchMode: 'fuzzy' }
+          ? { keyword: params, searchMode: 'fuzzy' }
           : params;
 
-      const res = await searchNodesApi(searchParams);
-      if (res.code === 200 && res.data) {
-        // 合并新数据到现有图谱
-        graphData.value = GraphUtils.mergeGraphData(graphData.value, res.data);
+      // 如果是问题搜索，调用专门的API
+      if (searchParams.searchType === 'problem') {
+        const res = await searchProblemGraph({
+          keyword: searchParams.keyword,
+          searchMode: searchParams.searchMode,
+        });
 
-        // 如果返回的节点很少，可以提示用户
-        if (res.data.nodes.length === 0) {
-          message.warning('未找到匹配的节点');
-        } else {
-          message.success(`找到 ${res.data.nodes.length} 个匹配节点`);
+        // 修正：应该将整个 res 赋值给 graphData，而不是 res.nodes
+        graphData.value = res; // 这里包含了 nodes 和 edges
+
+        if (res?.nodes?.length === 0) {
+          message.warning('未找到匹配的问题');
+        } else if (res?.nodes) {
+          const problemCount = res.nodes.filter(
+            (n) => n.nodeType === 'Problem',
+          ).length;
+          message.success(`找到 ${problemCount} 个匹配问题`);
         }
-
-        return res.data.nodes;
+        return res.nodes || [];
       } else {
-        throw new Error(res.msg || '搜索节点失败');
+        // 原有的通用搜索逻辑
+        const res = await searchNodesApi(searchParams);
+        if (res.code === 200 && res.data) {
+          graphData.value = GraphUtils.mergeGraphData(
+            graphData.value,
+            res.data,
+          );
+
+          if (res.data.nodes.length === 0) {
+            message.warning('未找到匹配的节点');
+          } else {
+            message.success(`找到 ${res.data.nodes.length} 个匹配节点`);
+          }
+
+          return res.data.nodes;
+        }
       }
+
+      throw new Error('搜索失败');
     } catch (error) {
       console.error('搜索节点异常:', error);
       message.error('搜索节点失败');
@@ -116,7 +141,6 @@ export function useGraphData() {
       loading.value = false;
     }
   };
-
   /**
    * 路径分析
    * @param params 路径分析参数

@@ -2,44 +2,18 @@
   <div class="search-panel">
     <div class="panel-header">
       <SearchOutlined class="search-icon" />
-      <span class="panel-title">节点搜索</span>
+      <span class="panel-title">问题搜索</span>
     </div>
     <div class="panel-content">
       <Form layout="vertical" :model="formState">
         <FormItem>
           <InputSearch
             v-model:value="formState.keyword"
-            placeholder="输入节点名称或属性关键词"
+            placeholder="输入问题名称"
             enter-button
             allow-clear
             @search="handleSearch"
           />
-        </FormItem>
-
-        <FormItem label="搜索类型">
-          <Select
-            v-model:value="formState.searchType"
-            placeholder="选择搜索类型"
-            style="width: 100%"
-          >
-            <SelectOption value="name">节点名称</SelectOption>
-            <SelectOption value="property">节点属性</SelectOption>
-            <SelectOption value="all">全部</SelectOption>
-          </Select>
-        </FormItem>
-
-        <FormItem v-if="formState.searchType === 'property'" label="属性字段">
-          <Select
-            v-model:value="formState.propertyField"
-            placeholder="选择属性字段"
-            style="width: 100%"
-          >
-            <SelectOption value="id">ID</SelectOption>
-            <SelectOption value="name">名称</SelectOption>
-            <SelectOption value="description">描述</SelectOption>
-            <SelectOption value="type">类型</SelectOption>
-            <SelectOption value="all">全部属性</SelectOption>
-          </Select>
         </FormItem>
 
         <FormItem>
@@ -95,8 +69,6 @@ import {
   Form,
   FormItem,
   InputSearch,
-  Select,
-  SelectOption,
   RadioGroup,
   RadioButton,
   Divider,
@@ -116,8 +88,6 @@ export default defineComponent({
     Form,
     FormItem,
     InputSearch,
-    Select,
-    SelectOption,
     RadioGroup,
     RadioButton,
     Divider,
@@ -130,15 +100,16 @@ export default defineComponent({
   setup(props, { emit }) {
     const formState = reactive({
       keyword: '',
-      searchType: 'all',
-      propertyField: 'all',
       searchMode: 'fuzzy',
     });
 
     const searchHistory = ref<any[]>([]);
 
     const handleSearch = () => {
-      const searchParams = { ...formState };
+      const searchParams = {
+        ...formState,
+        searchType: 'problem', // 固定搜索类型为problem
+      };
       searchHistory.value.push(searchParams);
       emit('search', searchParams);
     };
@@ -148,7 +119,10 @@ export default defineComponent({
     };
 
     const applyHistorySearch = (item: any) => {
-      Object.assign(formState, item);
+      Object.assign(formState, {
+        keyword: item.keyword,
+        searchMode: item.searchMode,
+      });
       handleSearch();
     };
 

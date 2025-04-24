@@ -25,7 +25,6 @@ import {
 
 import GraphViewer from './components/GraphViewer.vue';
 import SearchPanel from './components/SearchPanel.vue';
-import FilterPanel from './components/FilterPanel.vue';
 import NodeDetailDrawer from './components/NodeDetailDrawer.vue';
 
 import {
@@ -54,15 +53,8 @@ const problemIdsLoading = ref(false);
 const graphViewerRef = ref(null);
 
 // 使用图谱数据hook
-const {
-  loading,
-  graphData,
-  nodeTypes,
-  relationTypes,
-  fetchGraphData,
-  searchNodes,
-  fetchNodeRelations,
-} = useGraphData();
+const { loading, graphData, fetchGraphData, searchNodes, fetchNodeRelations } =
+  useGraphData();
 
 // 初始化加载图谱数据
 onMounted(async () => {
@@ -257,16 +249,6 @@ const handleSearch = async (keyword: string) => {
   } catch (error) {
     console.error('搜索节点失败:', error);
     message.error('搜索节点失败');
-  }
-};
-
-// 应用过滤器
-const applyFilters = (
-  nodeTypesToShow: string[],
-  relationTypesToShow: string[],
-) => {
-  if (graphViewerRef.value) {
-    graphViewerRef.value.applyFilters(nodeTypesToShow, relationTypesToShow);
   }
 };
 
@@ -801,11 +783,11 @@ const openCreateRelationForm = () => {
         class="mr-4 flex w-64 flex-col overflow-hidden rounded-md bg-white shadow-md"
       >
         <SearchPanel @search="handleSearch" />
-        <FilterPanel
-          :nodeTypes="nodeTypes"
-          :relationTypes="relationTypes"
-          @filter="applyFilters"
-        />
+        <!--        <FilterPanel-->
+        <!--          :nodeTypes="nodeTypes"-->
+        <!--          :relationTypes="relationTypes"-->
+        <!--          @filter="applyFilters"-->
+        <!--        />-->
       </div>
 
       <!-- 图谱展示区域 -->
