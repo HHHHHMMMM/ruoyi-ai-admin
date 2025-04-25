@@ -28,14 +28,14 @@ export function dataSourceInfo(id: string | number) {
  * 添加数据源
  */
 export function dataSourceAdd(data: SystemDataSourceConfig) {
-  return requestClient.postWithMsg<SystemDataSourceConfig>(Api.root, { data });
+  return requestClient.postWithMsg<SystemDataSourceConfig>(Api.root, data);
 }
 
 /**
  * 更新数据源
  */
 export function dataSourceUpdate(data: SystemDataSourceConfig) {
-  return requestClient.putWithMsg<SystemDataSourceConfig>(Api.root, { data });
+  return requestClient.putWithMsg<SystemDataSourceConfig>(Api.root, data);
 }
 /**
  * 删除数据源

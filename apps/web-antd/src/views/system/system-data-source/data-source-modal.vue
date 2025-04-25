@@ -16,6 +16,8 @@ import {
   Row,
   Col,
   Button,
+  message,
+  Modal,
 } from 'ant-design-vue';
 import { pick } from 'lodash-es';
 
@@ -158,16 +160,15 @@ async function handleTestConnection() {
       enabled: formData.value.enabled || true,
     };
 
-    const success = await dataSourceTestConnection(processedData);
-    if (success) {
-      modalApi.showMsg({ type: 'success', content: '连接测试成功' });
-    } else {
-      modalApi.showMsg({ type: 'error', content: '连接测试失败' });
-    }
+    await dataSourceTestConnection(processedData);
+    Modal.success({
+      title: '连接测试成功',
+      content: `与数据源 ${formData.value.systemName} 的连接测试成功`,
+    });
   } catch (error) {
-    modalApi.showMsg({
+    message.error({
       type: 'error',
-      content: `连接测试失败: ${error.message || error}`,
+      content: `连接测试失败: ${error}`,
     });
   } finally {
     modalApi.modalLoading(false);
