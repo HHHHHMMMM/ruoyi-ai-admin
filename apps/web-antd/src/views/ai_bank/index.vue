@@ -11,6 +11,7 @@ import {
   Select,
   Row,
   Col,
+  Tooltip,
 } from 'ant-design-vue';
 import type { DictData } from '#/api/system/dict/dict-data-model';
 
@@ -21,6 +22,7 @@ import {
   CheckCircleOutlined,
   PlusOutlined,
   LinkOutlined,
+  QuestionCircleOutlined,
 } from '@ant-design/icons-vue';
 
 import GraphViewer from './components/GraphViewer.vue';
@@ -42,7 +44,6 @@ import {
 } from './data/api';
 import { useGraphData } from './hooks/useGraphData';
 import type { NodeItem } from './data/types';
-import { dictDataList4AiBank } from '#/api/system/dict/dict-data';
 // 节点详情抽屉
 const drawerVisible = ref(false);
 const selectedNode = ref<NodeItem | null>(null);
@@ -273,24 +274,8 @@ const nodeForm = reactive({
   // 动态字段
   dynamicFields: [] as { key: string; value: string }[],
 });
-const problemTypeOptions = ref<DictData[]>([]);
-const dictLoading = ref(false);
-
 const nodeFormVisible = ref(false);
-// 加载问题类型字典数据
-const loadProblemTypes = async () => {
-  dictLoading.value = true;
-  try {
-    const res = await dictDataList4AiBank({ dictType: 'problem_type' }); // 使用正确的字典类型
-    problemTypeOptions.value = res.rows || [];
-  } catch (error) {
-    console.error('加载问题类型失败:', error);
-    message.error('加载问题类型失败');
-  } finally {
-    dictLoading.value = false;
-  }
-};
-// 打开节点编辑表单
+
 // 更新openNodeForm函数，处理Step节点的信息
 const openNodeForm = (node?: NodeItem) => {
   if (node) {
@@ -303,7 +288,6 @@ const openNodeForm = (node?: NodeItem) => {
       nodeForm.problemType = node.properties?.problem_type || '';
       nodeForm.problemId = node.properties?.problem_id || '';
       nodeForm.description = node.properties?.description || '';
-      loadProblemTypes(); // 加载问题类型数据
     } else if (node.nodeType === 'Step') {
       loadProblemIds();
       // 是Step节点，填充Step特定字段
@@ -375,11 +359,6 @@ const openNodeForm = (node?: NodeItem) => {
     nodeForm.replyContent = '';
     // 清空动态字段
     nodeForm.dynamicFields = [];
-
-    // 如果默认是问题类型，加载问题类型数据
-    if (nodeForm.label === 'Problem') {
-      loadProblemTypes();
-    }
   }
 
   nodeFormVisible.value = true;
@@ -404,10 +383,6 @@ const removeDynamicField = (index: number) => {
 const handleNodeFormSubmit = async () => {
   if (nodeForm.label === 'Problem') {
     // 验证问题特定字段
-    if (!nodeForm.problemType) {
-      message.error('请选择问题类型');
-      return;
-    }
     if (!nodeForm.description) {
       message.error('问题描述不能为空');
       return;
@@ -653,7 +628,6 @@ const handleRelationFormSubmit = async () => {
 // 节点类型变更处理
 const handleNodeTypeChange = (value) => {
   if (value === 'Problem') {
-    loadProblemTypes(); // 加载问题类型数据
     // 清空Step字段
     nodeForm.stepProblemId = '';
     nodeForm.stepId = null;
@@ -831,27 +805,28 @@ const openCreateRelationForm = () => {
 
         <!-- 问题类型选择 - 仅在选择"问题"节点类型时显示 -->
         <template v-if="nodeForm.label === 'Problem'">
-          <Form.Item label="问题类型">
-            <Select
-              v-model:value="nodeForm.problemType"
-              :loading="dictLoading"
-              @change="handleProblemTypeChange"
-            >
-              <Select.Option
-                v-for="item in problemTypeOptions"
-                :key="item.dictValue"
-                :value="item.dictValue"
-              >
-                {{ item.dictLabel }}
-              </Select.Option>
-            </Select>
+          <Form.Item>
+            <template #label>
+              <span>
+                问题意图
+                <Tooltip
+                  title="请使用英文简要描述，全局唯一，例如:transfer_limit_issue"
+                >
+                  <QuestionCircleOutlined style="margin-left: 4px" />
+                </Tooltip>
+              </span>
+            </template>
+            <Input v-model:value="nodeForm.problemType" />
           </Form.Item>
-
-          <Form.Item label="问题ID" v-if="nodeForm.problemId">
-            <Input v-model:value="nodeForm.problemId" disabled />
-          </Form.Item>
-
-          <Form.Item label="问题描述">
+          <Form.Item>
+            <template #label>
+              <span>
+                问题描述
+                <Tooltip title="问题描述将会反应在问题节点上。">
+                  <QuestionCircleOutlined style="margin-left: 4px" />
+                </Tooltip>
+              </span>
+            </template>
             <Input.TextArea v-model:value="nodeForm.description" :rows="4" />
           </Form.Item>
         </template>
