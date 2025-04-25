@@ -65,6 +65,7 @@ import {
   Empty,
   Tooltip as ATooltip,
   Button as AButton,
+  message,
 } from 'ant-design-vue';
 import {
   ZoomInOutlined,
@@ -75,7 +76,6 @@ import {
   InfoCircleOutlined,
 } from '@ant-design/icons-vue';
 import G6 from '@antv/g6';
-
 // Define interfaces locally
 interface NodeItem {
   id: string;
@@ -124,6 +124,8 @@ const emit = defineEmits([
   'add-edge',
   'expand-node',
   'edit-relation',
+  'create-relation',
+  'refresh-graph',
 ]);
 
 // Refs
@@ -164,6 +166,7 @@ const toggleTooltips = () => {
         animate: false,
         renderer: 'canvas',
         minZoom: 0.2,
+        allowMultiEdge: false,
         maxZoom: 5,
         modes: createGraphModes(showTooltips.value),
         layout: {
@@ -437,12 +440,26 @@ const createGraphModes = (tooltipsEnabled: boolean) => {
     addingEdge: [
       {
         type: 'create-edge',
-        trigger: 'click',
+        trigger: 'drag',
+        shouldBegin: (e: any) => {
+          // Only start edge creation when dragging from a node
+          if (!e.item || e.item.getType() !== 'node') return false;
+          return true;
+        },
+        shouldEnd: (e: any) => {
+          // Only end edge creation on a node
+          if (!e.item || e.item.getType() !== 'node') return false;
+          return true;
+        },
         edgeConfig: {
           type: 'custom-edge',
           style: {
             stroke: '#aaa',
             lineWidth: 1.5,
+            endArrow: {
+              path: G6.Arrow.triangle(6, 8, 0),
+              fill: '#aaa',
+            },
           },
         },
       },
@@ -824,7 +841,7 @@ const openEdgeContextMenu = (x: number, y: number, edge: any) => {
 
   // Delete relationship
   const deleteItem = createMenuItem('删除关系', () => {
-    emit('delete-edge', edge.originalId || edge.id.replace('e-', ''));
+    emit('delete-relation', edge.originalId || edge.id.replace('e-', ''));
   });
   menu.appendChild(deleteItem);
 
@@ -960,40 +977,181 @@ const downloadImage = () => {
 const enableCreateRelation = () => {
   if (!graph.value) return;
 
+  console.log('开始创建关系模式');
+
   // Set mode to add edge
   graph.value.setMode('addingEdge');
 
   // Show instruction message
-  const message = document.createElement('div');
-  message.className = 'graph-message';
-  message.style.position = 'absolute';
-  message.style.top = '10px';
-  message.style.left = '50%';
-  message.style.transform = 'translateX(-50%)';
-  message.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-  message.style.color = '#fff';
-  message.style.padding = '8px 16px';
-  message.style.borderRadius = '4px';
-  message.style.zIndex = '1001';
-  message.innerText = '点击起始节点并拖动至目标节点创建关系，点击空白区域取消';
+  const messageDiv = document.createElement('div');
+  messageDiv.className = 'graph-message';
+  messageDiv.style.position = 'fixed';
+  messageDiv.style.top = '10px';
+  messageDiv.style.left = '50%';
+  messageDiv.style.transform = 'translateX(-50%)';
+  messageDiv.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+  messageDiv.style.color = '#fff';
+  messageDiv.style.padding = '8px 16px';
+  messageDiv.style.borderRadius = '4px';
+  messageDiv.style.zIndex = '1001';
+  messageDiv.innerText =
+    '点击起始节点并拖动至目标节点创建关系，点击空白区域取消';
 
-  document.body.appendChild(message);
+  document.body.appendChild(messageDiv);
 
-  // Handle cancel
+  // Handle edge creation
+  const edgeCreatedHandler = (evt: any) => {
+    console.log('边创建事件触发', evt);
+
+    const { edge } = evt;
+
+    if (!edge) {
+      console.error('没有edge对象', evt);
+      return;
+    }
+
+    // Get the model from the edge
+    const edgeModel = edge.getModel();
+    console.log('Edge model:', edgeModel);
+
+    // Extract the actual IDs from the model
+    const sourceId = edgeModel.source;
+    const targetId = edgeModel.target;
+
+    console.log('获取到的sourceId:', sourceId);
+    console.log('获取到的targetId:', targetId);
+
+    // Now we need to find the nodes
+    let sourceNode = null;
+    let targetNode = null;
+
+    // Try to find nodes directly
+    if (typeof sourceId === 'string') {
+      sourceNode = graph.value.findById(sourceId);
+    } else if (sourceId && sourceId._cfg) {
+      // If sourceId is a Proxy/Node object, get its ID
+      const sourceNodeId = sourceId._cfg.id;
+      sourceNode = sourceId; // The node itself
+    }
+
+    if (typeof targetId === 'string') {
+      targetNode = graph.value.findById(targetId);
+    } else if (targetId && targetId._cfg) {
+      // If targetId is a Proxy/Node object, get its ID
+      const targetNodeId = targetId._cfg.id;
+      targetNode = targetId; // The node itself
+    }
+
+    console.log('找到的sourceNode:', sourceNode);
+    console.log('找到的targetNode:', targetNode);
+
+    if (!sourceNode || !targetNode) {
+      console.error('节点获取失败');
+      message.error('节点信息获取失败');
+      // Don't attempt to remove the edge here
+      return;
+    }
+
+    const sourceModel = sourceNode.getModel();
+    const targetModel = targetNode.getModel();
+
+    console.log('sourceModel:', sourceModel);
+    console.log('targetModel:', targetModel);
+
+    // Validate node types
+    if (sourceModel.nodeType !== 'Step' || targetModel.nodeType !== 'Step') {
+      message.error('只能在步骤节点之间创建关系');
+      // Use try-catch to safely remove the edge
+      try {
+        if (edge && graph.value) {
+          graph.value.removeItem(edge);
+        }
+      } catch (error) {
+        console.warn('移除临时边时出错，可以忽略:', error);
+      }
+      return;
+    }
+
+    // Build relation data - use originalId to get the actual ID without prefix
+    const relationData = {
+      relationType: 'NEXT_DEFAULT',
+      problemId: sourceModel.properties.problem_id,
+      fromStepId: parseInt(sourceModel.properties.step_id),
+      toStepId: parseInt(targetModel.properties.step_id),
+    };
+
+    console.log('准备创建关系:', relationData);
+
+    // Emit create relation event
+    emit('create-relation', relationData);
+
+    // Safely remove temporary edge inside try-catch
+    try {
+      if (edge && graph.value) {
+        // Use setTimeout to avoid race conditions
+        setTimeout(() => {
+          try {
+            graph.value.removeItem(edge);
+          } catch (error) {
+            console.warn('移除临时边时出错，可以忽略:', error);
+          }
+        }, 0);
+      }
+    } catch (error) {
+      console.warn('移除临时边时出错，可以忽略:', error);
+    }
+
+    // Exit edge creation mode
+    graph.value.setMode('default');
+
+    // Clean up
+    if (document.body.contains(messageDiv)) {
+      document.body.removeChild(messageDiv);
+    }
+  };
+
+  // Listen for edge creation
+  graph.value.on('aftercreateedge', edgeCreatedHandler);
+
+  // Handle cancel by clicking blank area
   const cancelHandler = (evt: MouseEvent) => {
+    const target = evt.target as HTMLElement;
+
+    // Check if clicked on blank area
     if (
-      graph.value &&
-      (evt.target as HTMLElement).className === 'graph-container'
+      target === graph.value.get('canvas').get('el') ||
+      target.className.includes('graph-container') ||
+      target.tagName.toLowerCase() === 'canvas'
     ) {
+      // Exit create relation mode
       graph.value.setMode('default');
+
+      // Clean up
       document.removeEventListener('click', cancelHandler);
-      if (document.body.contains(message)) {
-        document.body.removeChild(message);
+      graph.value.off('aftercreateedge', edgeCreatedHandler);
+
+      if (document.body.contains(messageDiv)) {
+        document.body.removeChild(messageDiv);
       }
     }
   };
 
-  document.addEventListener('click', cancelHandler);
+  // Add click handler with delay to avoid immediate trigger
+  setTimeout(() => {
+    document.addEventListener('click', cancelHandler);
+  }, 100);
+
+  // Clean up when mode changes
+  graph.value.once('mode:change', (evt: any) => {
+    if (evt.mode === 'default') {
+      document.removeEventListener('click', cancelHandler);
+      graph.value.off('aftercreateedge', edgeCreatedHandler);
+
+      if (document.body.contains(messageDiv)) {
+        document.body.removeChild(messageDiv);
+      }
+    }
+  });
 };
 
 // Apply filters
@@ -1064,8 +1222,6 @@ onUnmounted(() => {
 });
 
 // Watch for data changes
-// 修改 watch 部分的代码
-// 在watch中添加日志
 watch(
   () => props.graphData,
   (newVal) => {

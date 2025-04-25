@@ -252,20 +252,6 @@ const handleSearch = async (keyword: string) => {
   }
 };
 
-// 展开所有节点
-const expandAll = () => {
-  if (graphViewerRef.value) {
-    graphViewerRef.value.expandAll();
-  }
-};
-
-// 收起所有节点
-const collapseAll = () => {
-  if (graphViewerRef.value) {
-    graphViewerRef.value.collapseAll();
-  }
-};
-
 // 节点编辑相关
 const nodeForm = reactive({
   id: '',
@@ -512,9 +498,7 @@ const handleNodeFormSubmit = async () => {
     // 处理响应
     nodeFormVisible.value = false;
     await refreshGraph(); // 刷新图谱以显示新节点
-    message.success(
-      res.message || (nodeForm.id ? '节点更新成功' : '节点创建成功'),
-    );
+    message.success(nodeForm.id ? '节点更新成功' : '节点创建成功');
   } catch (error) {
     console.error('保存节点失败:', error);
     message.error('保存节点失败');
@@ -528,6 +512,24 @@ const handleEditRelation = (relation) => {
     console.error('关系对象为空');
   }
 };
+
+// Add this method to handle the create-relation event from GraphViewer
+const handleCreateRelation = async (relationData: any) => {
+  try {
+    const res = await createRelation(relationData);
+
+    if (res && res.code === 200) {
+      await refreshGraph(); // 刷新图谱
+      message.success('关系创建成功');
+    } else {
+      message.error(res?.msg || '关系创建失败');
+    }
+  } catch (error) {
+    console.error('创建关系失败:', error);
+    message.error('创建关系失败');
+  }
+};
+
 // 删除节点
 const confirmDeleteNode = (nodeId: string) => {
   Modal.confirm({
@@ -587,6 +589,7 @@ const openRelationForm = (
 
   relationFormVisible.value = true;
 };
+
 // 处理关系表单提交
 const handleRelationFormSubmit = async () => {
   // 验证表单
@@ -702,7 +705,7 @@ const confirmDeleteRelation = (relationId: string) => {
 };
 
 // 问题类型变更处理
-const handleProblemTypeChange = async (value) => {
+const handleProblemTypeChange = async () => {
   // 清空问题ID，等待后端生成
   nodeForm.problemId = '';
 
@@ -768,13 +771,6 @@ const openCreateRelationForm = () => {
           </Button>
         </Space>
       </div>
-
-      <div>
-        <Space>
-          <Button @click="expandAll">展开全部</Button>
-          <Button @click="collapseAll">收起全部</Button>
-        </Space>
-      </div>
     </div>
 
     <div class="flex h-full">
@@ -783,11 +779,6 @@ const openCreateRelationForm = () => {
         class="mr-4 flex w-64 flex-col overflow-hidden rounded-md bg-white shadow-md"
       >
         <SearchPanel @search="handleSearch" />
-        <!--        <FilterPanel-->
-        <!--          :nodeTypes="nodeTypes"-->
-        <!--          :relationTypes="relationTypes"-->
-        <!--          @filter="applyFilters"-->
-        <!--        />-->
       </div>
 
       <!-- 图谱展示区域 -->
@@ -802,6 +793,9 @@ const openCreateRelationForm = () => {
           @node-click="handleNodeClick"
           @edit-relation="handleEditRelation"
           @delete-node="confirmDeleteNode"
+          @delete-relation="confirmDeleteRelation"
+          @create-relation="handleCreateRelation"
+          @refresh-graph="refreshGraph"
         />
       </div>
     </div>
