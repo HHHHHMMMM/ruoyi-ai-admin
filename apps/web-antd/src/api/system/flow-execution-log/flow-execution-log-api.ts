@@ -8,7 +8,7 @@ enum Api {
   flowLogList = '/knowledge-graph/flow-paths/list',
   flowLogCleanupExpired = '/knowledge-graph/flow-paths',
   root = '/knowledge-graph/flow-paths',
-  getRoot = '/knowledge-graph/flow-paths/recent/problem/',
+  getRoot = '/knowledge-graph/flow-paths',
 }
 
 /**

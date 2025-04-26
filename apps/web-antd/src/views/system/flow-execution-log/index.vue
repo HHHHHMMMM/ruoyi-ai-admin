@@ -91,7 +91,7 @@ const [LogDetail, detailApi] = useVbenModal({
 });
 
 function handleViewDetail(record: FlowExecutionLog) {
-  detailApi.setData({ id: record.id });
+  detailApi.setData({ id: record.flowId });
   detailApi.open();
 }
 
