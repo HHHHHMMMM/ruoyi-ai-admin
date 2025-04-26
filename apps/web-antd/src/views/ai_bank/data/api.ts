@@ -19,7 +19,8 @@ enum Api {
   createNode = '/knowledge/graph/node',
   createStepNode = '/knowledge/graph/stepNode',
 
-  updateNode = '/knowledge/graph/node', // This is fine as the nodeId is appended in the function
+  updateProblemNode = '/knowledge/graph/problemNode',
+  updateStepNode = '/knowledge/graph/stepNode',
   deleteNode = '/knowledge/graph/node',
   createRelation = '/knowledge/graph/relation',
   updateRelation = '/knowledge/graph/relation', // This is fine as relationId is appended in the function
@@ -139,19 +140,21 @@ export async function createProblemNode(nodeData: any) {
   return requestClient.post(Api.createNode, problemData);
 }
 
-// 更新节点的API接口更新
-export async function updateNode(nodeId: string, nodeData: any) {
+//更新节点
+export async function updateNode(nodeData: any) {
   // 特殊处理问题节点
   if (nodeData.nodeType === 'Problem') {
-    return updateProblemNode(nodeId, nodeData);
+    return updateProblemNode(nodeData);
   }
 
-  // 处理其他类型节点
-  return requestClient.put(`${Api.updateNode}/${nodeId}`, nodeData);
+  // 处理步骤节点
+  if (nodeData.nodeType === 'Step') {
+    return updateStepNode(nodeData);
+  }
 }
 
 // 专门处理问题节点的更新
-export async function updateProblemNode(nodeId: string, nodeData: any) {
+export async function updateProblemNode(nodeData: any) {
   // 构建问题数据结构
   const problemData = {
     problemId: nodeData.properties.problem_id, // 这里包含problemId，因为是更新操作
@@ -168,10 +171,52 @@ export async function updateProblemNode(nodeId: string, nodeData: any) {
       }, {}),
   };
 
-  // 调用专门的问题更新接口
-  return requestClient.put(`${Api.updateNode}/${nodeId}`, problemData);
+  // 调用问题节点的专用API
+  return requestClient.put(`${Api.updateProblemNode}`, problemData);
 }
 
+// 新增：专门处理步骤节点的更新
+export async function updateStepNode(nodeData: any) {
+  // 构建步骤数据结构
+  const stepData = {
+    stepId: nodeData.properties.step_id,
+    problemId: nodeData.properties.problem_id,
+    operation: nodeData.properties.operation,
+    // 根据操作类型添加相应的字段
+    ...(nodeData.properties.operation === 'query' && {
+      systemA: nodeData.properties.system_a,
+      tableName: nodeData.properties.table_name,
+      field: nodeData.properties.field,
+      conditionSql: nodeData.properties.condition_sql,
+    }),
+    // 添加回复内容（如果有）
+    ...(nodeData.properties.reply_content && {
+      replyContent: nodeData.properties.reply_content,
+    }),
+    // 其他自定义属性
+    attributes: Object.entries(nodeData.properties)
+      .filter(
+        ([key]) =>
+          ![
+            'step_id',
+            'problem_id',
+            'operation',
+            'system_a',
+            'table_name',
+            'field',
+            'condition_sql',
+            'reply_content',
+          ].includes(key),
+      )
+      .reduce<Record<string, any>>((acc, [key, value]) => {
+        acc[key] = value;
+        return acc;
+      }, {}),
+  };
+
+  // 调用步骤节点的专用API
+  return requestClient.put(`${Api.updateStepNode}`, stepData);
+}
 /**
  * 删除节点
  * @param nodeId 节点ID

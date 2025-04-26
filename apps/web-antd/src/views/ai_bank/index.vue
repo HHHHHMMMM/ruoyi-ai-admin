@@ -379,7 +379,6 @@ const removeDynamicField = (index: number) => {
 };
 
 // 处理节点表单提交
-// 更新handleNodeFormSubmit函数，处理不同类型节点的提交
 const handleNodeFormSubmit = async () => {
   if (nodeForm.label === 'Problem') {
     // 验证问题特定字段
@@ -459,15 +458,14 @@ const handleNodeFormSubmit = async () => {
   });
 
   try {
-    let res;
     if (nodeForm.id) {
       // 更新节点
-      res = await updateNode(nodeForm.id, nodeData);
+      await updateNode(nodeData);
     } else if (nodeForm.label === 'Step') {
       // 创建新节点
-      res = await createStepNode(nodeData);
+      await createStepNode(nodeData);
     } else {
-      res = await createNode(nodeData);
+      await createNode(nodeData);
     }
 
     // 处理响应
@@ -479,6 +477,7 @@ const handleNodeFormSubmit = async () => {
     message.error('保存节点失败');
   }
 };
+
 const handleEditRelation = (relation) => {
   if (relation) {
     console.log('Received in parent:', relation);

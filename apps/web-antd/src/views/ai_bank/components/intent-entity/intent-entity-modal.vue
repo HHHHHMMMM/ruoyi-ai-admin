@@ -89,11 +89,20 @@ const [BasicModal, modalApi] = useVbenModal({
     modalApi.modalLoading(true);
     const { id } = modalApi.getData() as { id?: number | string };
     isUpdate.value = !!id;
+
+    // 获取父组件中可能传递的intentType
+    const { intentType } = modalApi.getData() as { intentType?: string };
+
     if (isUpdate.value && id) {
       const record = await intentEntityInfo(id);
       // 只赋值存在的字段
       const filterRecord = pick(record, Object.keys(defaultValues));
       formData.value = filterRecord;
+    } else {
+      // 如果是新增，且父组件传递了intentType，则使用父组件传递的值
+      if (intentType) {
+        formData.value.intentType = intentType;
+      }
     }
     modalApi.modalLoading(false);
   },
@@ -125,12 +134,6 @@ async function handleCancel() {
 <template>
   <BasicModal :title="title">
     <Form layout="vertical">
-      <FormItem label="意图类型" v-bind="validateInfos.intentType">
-        <Input
-          :placeholder="$t('ui.formRules.required')"
-          v-model:value="formData.intentType"
-        />
-      </FormItem>
       <FormItem label="实体名称" v-bind="validateInfos.entityName">
         <Input
           :placeholder="$t('ui.formRules.required')"

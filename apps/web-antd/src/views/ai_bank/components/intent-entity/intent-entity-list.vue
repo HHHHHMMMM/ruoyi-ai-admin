@@ -126,7 +126,9 @@ const [IntentEntityModal, modalApi] = useVbenModal({
 });
 
 function handleAdd() {
-  modalApi.setData({});
+  modalApi.setData({
+    intentType: props.problemType, // 将父组件的problemType作为intentType传递给子组件
+  });
   modalApi.open();
 }
 
