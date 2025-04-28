@@ -13,7 +13,6 @@ import {
   Col,
   Tooltip,
 } from 'ant-design-vue';
-import type { DictData } from '#/api/system/dict/dict-data-model';
 
 import {
   ReloadOutlined,
@@ -42,10 +41,13 @@ import {
   createStepNode,
   getStepsByProblemId,
 } from './data/api';
+import { dataSourceList } from '#/api/system/data-source/api';
 import { useGraphData } from './hooks/useGraphData';
 import type { NodeItem } from './data/types';
 // 节点详情抽屉
 const drawerVisible = ref(false);
+const systemList = ref<any[]>([]);
+const systemListLoading = ref(false);
 const selectedNode = ref<NodeItem | null>(null);
 // 添加问题ID列表相关的响应式数据
 const problemIds = ref<any[]>([]);
@@ -60,6 +62,7 @@ const { loading, graphData, fetchGraphData, searchNodes, fetchNodeRelations } =
 // 初始化加载图谱数据
 onMounted(async () => {
   await refreshGraph();
+  await loadSystemList();
 });
 
 // 关系表单相关
@@ -83,6 +86,23 @@ const filteredSteps = computed(() => {
   );
 });
 
+// Add this function with your other loading functions
+const loadSystemList = async () => {
+  systemListLoading.value = true;
+  try {
+    const res = await dataSourceList({
+      pageNum: 1,
+      pageSize: 100, // Ensure we get all systems
+    });
+    systemList.value = res.rows;
+  } catch (error) {
+    console.error('加载系统列表失败:', error);
+    message.error('加载系统列表失败');
+    systemList.value = [];
+  } finally {
+    systemListLoading.value = false;
+  }
+};
 // 加载特定问题的步骤列表
 const loadStepsByProblemId = async (problemId: string) => {
   if (!problemId) return;
@@ -875,7 +895,20 @@ const openCreateRelationForm = () => {
           </Form.Item>
           <template v-if="nodeForm.operation === 'query'">
             <Form.Item label="系统名称">
-              <Input v-model:value="nodeForm.systemA" placeholder="相关系统" />
+              <Select
+                v-model:value="nodeForm.systemA"
+                placeholder="请选择系统"
+                :loading="systemListLoading"
+                show-search
+              >
+                <Select.Option
+                  v-for="system in systemList"
+                  :key="system.id"
+                  :value="system.systemName"
+                >
+                  {{ system.systemName }}
+                </Select.Option>
+              </Select>
             </Form.Item>
 
             <Form.Item label="表名">
