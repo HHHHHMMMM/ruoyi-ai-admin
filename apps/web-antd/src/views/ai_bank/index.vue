@@ -511,13 +511,8 @@ const handleEditRelation = (relation) => {
 const handleCreateRelation = async (relationData: any) => {
   try {
     const res = await createRelation(relationData);
-
-    if (res && res.code === 200) {
-      await refreshGraph(); // 刷新图谱
-      message.success('关系创建成功');
-    } else {
-      message.error(res?.msg || '关系创建失败');
-    }
+    await refreshGraph(); // 刷新图谱
+    message.success('关系创建成功');
   } catch (error) {
     console.error('创建关系失败:', error);
     message.error('创建关系失败');
@@ -689,32 +684,13 @@ const confirmDeleteRelation = (relationId: string) => {
     onOk: async () => {
       try {
         await deleteRelation(relationId);
+        await refreshGraph();
       } catch (error) {
         console.error('删除关系失败:', error);
         message.error('删除关系失败');
       }
     },
   });
-};
-
-// 问题类型变更处理
-const handleProblemTypeChange = async () => {
-  // 清空问题ID，等待后端生成
-  nodeForm.problemId = '';
-
-  // 后端会根据问题类型生成ID，这里可以先清空，或者可以预览生成规则
-  // 实际生成的ID会在提交表单后由后端返回
-};
-// 处理步骤ID输入变更，确保是数字类型
-const handleStepIdChange = (value) => {
-  // 将字符串转换为数字
-  const numValue = parseInt(value, 10);
-  if (!isNaN(numValue) && numValue >= 1) {
-    nodeForm.stepId = numValue;
-  } else {
-    // 如果输入无效，可以设置为null或保持原值
-    nodeForm.stepId = null;
-  }
 };
 
 // 打开创建关系表单
@@ -904,13 +880,12 @@ const openCreateRelationForm = () => {
                 <Select.Option
                   v-for="system in systemList"
                   :key="system.id"
-                  :value="system.systemName"
+                  :value="system.englishSystemName"
                 >
-                  {{ system.systemName }}
+                  {{ system.systemName }}--{{ system.dbName }}库
                 </Select.Option>
               </Select>
             </Form.Item>
-
             <Form.Item label="表名">
               <Input
                 v-model:value="nodeForm.tableName"

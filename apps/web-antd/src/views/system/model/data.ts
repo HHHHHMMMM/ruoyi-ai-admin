@@ -35,20 +35,20 @@ export const columns: VxeGridProps['columns'] = [
     title: '模型描述',
     field: 'modelDescribe',
   },
-  {
-    title: '模型价格',
-    field: 'modelPrice',
-  },
-  {
-    title: '计费类型',
-    field: 'modelType',
-    width: 120,
-    slots: {
-      default: ({ row }) => {
-        return renderDict(row.modelType, DictEnum.SYS_MODEL_BILLING);
-      },
-    },
-  },
+  // {
+  //   title: '模型价格',
+  //   field: 'modelPrice',
+  // },
+  // {
+  //   title: '计费类型',
+  //   field: 'modelType',
+  //   width: 120,
+  //   slots: {
+  //     default: ({ row }) => {
+  //       return renderDict(row.modelType, DictEnum.SYS_MODEL_BILLING);
+  //     },
+  //   },
+  // },
   {
     title: '是否显示',
     field: 'modelShow',

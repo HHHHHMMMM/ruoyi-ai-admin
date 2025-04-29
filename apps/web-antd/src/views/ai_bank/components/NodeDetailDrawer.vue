@@ -65,7 +65,12 @@
         </Card>
 
         <!-- 意图实体映射列表 (替换原有的关系列表) -->
-        <Card class="intent-entity-card" title="意图实体映射" :bordered="false">
+        <Card
+          class="intent-entity-card"
+          title="意图实体映射"
+          :bordered="false"
+          v-if="nodeData.nodeType == 'Problem'"
+        >
           <IntentEntityList
             ref="intentEntityListRef"
             :in-drawer="true"
